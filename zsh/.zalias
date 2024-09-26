@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+alias ls='eza -ahlF --color=always --icons=always --git --total-size --no-user --no-time --no-permissions '
+alias ll='ls -lahF'
+alias la='ls -alh'
+alias dif="git diff --no-index"                                                                   # Diff two files even if not in git repo! Can add -w (don't diff whitespaces)
+alias tmuxk='tmux kill-session -t'
+alias tmuxa='tmux attach -t'
+alias tmuxl='tmux list-sessions'
+function nvim_env() {
+ # If I have VIRTUAL_ENV and a local pyenv (to avoid creating pyrightconfig.json everywhere) but not the pyrightconfig.json create it
+  if test -e "$VIRTUAL_ENV" && test -f .python-version && test ! -f pyrightconfig.json; then
+    echo "VIRTUAL_ENV detected adding pyrightconfig.json"
+    sleep 2
+    pyenv pyright
+  fi
+  if [[ -e "$VIRTUAL_ENV" && -f "$VIRTUAL_ENV/bin/activate" ]]; then
+    source "$VIRTUAL_ENV/bin/activate"
+    command nvim "$@"
+    deactivate
+  else
+    command nvim "$@"
+  fi
+}
+# nvim aliases
+alias vim="nvim_env"
+alias nvim="nvim_env"
+alias v="nvim_env"
+# custom alias to create project
+alias create_project='create_project_function'
+
+create_project_function() {
+    if [ $# -ne 2 ]; then
+        echo "Usage: create_project {folder_name} {virtualenv_version}"
+        return 1
+    fi
+
+    folder_name="$1"
+    virtualenv_version="$2"
+
+    cd ~/Projects || return
+    gh repo create "$folder_name" --private --license mit --gitignore=Python
+    gh repo clone "$folder_name"
+    cd ~/Projects/"$folder_name" || return
+    pyenv virtualenv "$virtualenv_version" "$folder_name"
+    pyenv local "$folder_name"
+    local readme_content="# $folder_name\n\n## Description\n\nAdd project description here.\n\n## Getting Started\n\nAdd instructions on how to get started with the project.\n"
+    echo "$readme_content" > README.md
+    git add README.md
+    git commit -m "Initial commit with README"
+    git push
+
+
+}
+# this allow me to do d and a number to access them
+alias d='dirs -v'
+for index ({1..9}) alias "$index"="cd +${index}"; unset index

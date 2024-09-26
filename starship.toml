@@ -1,0 +1,21 @@
+# Get editor completions based on the config schema
+
+"$schema" = 'https://starship.rs/config-schema.json'
+
+[cmd_duration]
+disabled = true
+
+[directory]
+truncation_length = 8
+truncation_symbol = '../'
+
+[memory_usage]
+disabled = true
+threshold = -1
+symbol = ' '
+style = 'bold dimmed green'
+
+[python]
+format = '| [${symbol}${pyenv_prefix}(${version} )(\($virtualenv\) )]($style)'
+[git_branch]
+format = '| [$symbol$branch(:$remote_branch)]($style) '
