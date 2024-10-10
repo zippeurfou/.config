@@ -73,6 +73,8 @@ return {
       { "<leader>Tsw", Util.telescope("grep_string"),                            desc = "Word (root dir)" },
       { "<leader>TsW", Util.telescope("grep_string", { cwd = false }),           desc = "Word (cwd)" },
       { "<leader>Tcs", Util.telescope("colorscheme", { enable_preview = true }), desc = "Colorscheme with preview" },
+      {"<leader>Tlf",'<cmd>Telescope lsp_document_symbols symbols="function"<cr>',desc = "Function"},
+      {"<leader>Tla",'<cmd>Telescope lsp_document_symbols<cr>',desc = "All"},
       {
         "<leader>ss",
         Util.telescope("lsp_document_symbols", {
