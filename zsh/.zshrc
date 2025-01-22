@@ -10,6 +10,7 @@ source /opt/homebrew/etc/profile.d/z.sh
 source /Users/mferradou/.config/zsh/zsh-z/zsh-z.plugin.zsh
 source /Users/mferradou/.config/zsh/.zalias
 source /Users/mferradou/.config/zsh/.zprivate # private stuff to not share publicly
+
 if type brew &>/dev/null; then
     FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
     autoload -Uz compinit
@@ -111,9 +112,12 @@ eval "$(fzf --zsh)"
 eval "$(starship init zsh)"
 # java stuff
 export PATH="/opt/homebrew/opt/openjdk/bin:$PATH"
+# TODO: Figure what version I have
+export PATH="/opt/homebrew/opt/openjdk@11/bin:$PATH"
 # Poetry
 export PATH="/Users/mferradou/.local/bin:$PATH"
 
 . "$HOME/.atuin/bin/env"
 
 eval "$(atuin init zsh)"
+source ~/.local/share/bash-completion/completions/password
