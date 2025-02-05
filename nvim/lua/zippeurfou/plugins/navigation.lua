@@ -53,6 +53,8 @@ return {
       { "<leader>Tff", Util.telescope("files"),                                  desc = "Find Files (root dir)" },
       { "<leader>TfF", Util.telescope("files", { cwd = false }),                 desc = "Find Files (cwd)" },
       { "<leader>Tfr", "<cmd>Telescope oldfiles<cr>",                            desc = "Recent" },
+      { "<leader>F", Util.telescope("files"),                                    desc = "Find Files (root dir)" },
+      { "<leader>B", "<cmd>Telescope buffers<cr>",                               desc = "Buffers" },
       -- git
       { "<leader>Tgc", "<cmd>Telescope git_commits<CR>",                         desc = "commits" },
       { "<leader>Tgs", "<cmd>Telescope git_status<CR>",                          desc = "status" },
@@ -63,6 +65,7 @@ return {
       { "<leader>TsC", "<cmd>Telescope commands<cr>",                            desc = "Commands" },
       { "<leader>Tsd", "<cmd>Telescope diagnostics<cr>",                         desc = "Diagnostics" },
       { "<leader>Tsg", Util.telescope("live_grep"),                              desc = "Grep (root dir)" },
+      { "<leader>S", Util.telescope("live_grep"),                                desc = "[S]earch" },
       { "<leader>TsG", Util.telescope("live_grep", { cwd = false }),             desc = "Grep (cwd)" },
       { "<leader>Tsh", "<cmd>Telescope help_tags<cr>",                           desc = "Help Pages" },
       { "<leader>TsH", "<cmd>Telescope highlights<cr>",                          desc = "Search Highlight Groups" },

@@ -44,13 +44,14 @@ return {
 							return require("which-key.extras").expand.win()
 						end,
 					},
-					{
-						"<leader>B",
-						group = "buffers",
-						expand = function()
-							return require("which-key.extras").expand.buf()
-						end,
-					},
+          -- Use Telescope inseated
+					-- {
+					-- 	"<leader>B",
+					-- 	group = "buffers",
+					-- 	expand = function()
+					-- 		return require("which-key.extras").expand.buf()
+					-- 	end,
+					-- },
 				},
 			})
 			-- wk.register({

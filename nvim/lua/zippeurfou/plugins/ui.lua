@@ -322,6 +322,12 @@ return {
 		build = "nvim -l build/init.lua",
 	},
 	{
+		"github/copilot.vim",
+		lazy = false,
+		init = function()
+		end,
+	},
+	{
 		"nvim-lualine/lualine.nvim",
 		event = "VeryLazy",
 		opts = function()
