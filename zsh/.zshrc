@@ -111,9 +111,11 @@ export PYENV_VIRTUALENV_DISABLE_PROMPT=1
 eval "$(fzf --zsh)"
 eval "$(starship init zsh)"
 # java stuff
-export PATH="/opt/homebrew/opt/openjdk/bin:$PATH"
+export SPARK_HOME="$HOME/spark-3.3.1-bin-hadoop3"
+export PATH="$PATH:$SPARK_HOME/bin:$SPARK_HOME/sbin"
+
 # TODO: Figure what version I have
-export PATH="/opt/homebrew/opt/openjdk@11/bin:$PATH"
+# export PATH="/opt/homebrew/opt/openjdk@11/bin:$PATH"
 # Poetry
 export PATH="/Users/mferradou/.local/bin:$PATH"
 

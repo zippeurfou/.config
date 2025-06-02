@@ -6,24 +6,18 @@ return {
 		dependencies = {
 			{ "folke/neoconf.nvim", cmd = "Neoconf", config = true },
 			{ "folke/neodev.nvim", opts = { experimental = { pathStrict = true } } },
-			"mason.nvim",
-			"williamboman/mason-lspconfig.nvim",
+			"mason-org/mason.nvim",
+			"mason-org/mason-lspconfig.nvim",
 			"hrsh7th/cmp-nvim-lsp",
 		},
-		---@class PluginLspOpts
 		opts = {
-			-- options for vim.diagnostic.config()
 			diagnostics = {
 				underline = true,
 				update_in_insert = false,
 				virtual_text = { spacing = 4, prefix = "●" },
 				severity_sort = true,
 			},
-			-- Automatically format on save
 			autoformat = true,
-			-- options for vim.lsp.buf.format
-			-- `bufnr` and `filter` is handled by the LazyVim formatter,
-			-- but can be also overriden when specified
 			format = {
 				formatting_options = nil,
 				timeout_ms = nil,
@@ -36,7 +30,6 @@ return {
 						python = {
 							analysis = {
 								autoSearchPaths = true,
-								-- diagnosticMode = "workspace",
 								diagnosticMode = "openFilesOnly",
 								useLibraryCodeForTypes = true,
 								autoImportCompletions = true,
@@ -46,48 +39,36 @@ return {
 									variableTypes = true,
 									functionReturnTypes = true,
 								},
-								-- diagnosticSeverityOverrides = {
-								--   reportMissingTypeStubs = "none",
-								--   reportUnusedExpression = "information",
-								--   reportPrivateUsage = "warning",
-								--   reportUnknownMemberType = "none",
-								-- },
 							},
 						},
 					},
 				},
-				-- ruff_lsp = {},
-				-- pylsp = {
-				--   settings = {
-				--     pylsp = {
-				--       plugins = {
-				--         -- pylint = { enabled = true, executable = "pylint" },
-				--         autopep8 = { enabled = false},
-				--         pyflakes = { enabled = false },
-				--         pycodestyle = { enabled = false },
-				--         jedi_completion = { enabled= false, fuzzy = false },
-				--         -- pylsp_isort = { enabled = true },
-				--         pylsp_mypy = { enabled = true,live_mode = true },
-				--         pyls_memestra = {enabled = false},
-				--         -- mypy = { enabled = false },
-				--         ruff = {enabled = true, lineLength=100,  cache_config = false,},
-				--         black = {enabled = true, line_length=100, cache_config = false,},
-				--         rope_autoimport = {enabled = true},
-				--         rope_completion = { enabled = true },
-				--         rope = {enabled = true},
-				--         lsp_rope = {enabled = true},
-				--         pydocstyle = {enabled = false},
-				--       },
-				--     },
-				--   },
-				-- },
+				yamlls = {
+					settings = {
+						yaml = {
+							validate = true,
+							hover = true,
+							completion = true,
+							format = {
+								enable = true,
+								singleQuote = false,
+								bracketSpacing = true,
+							},
+							schemaStore = {
+								enable = false,
+								url = "",
+							},
+							schemas = {
+								["https://json.schemastore.org/github-workflow.json"] = "/.github/workflows/*",
+								["https://json.schemastore.org/kustomization.json"] = "kustomization.{yml,yaml}",
+							},
+						},
+					},
+				},
 				lua_ls = {
 					settings = {
 						Lua = {
-							diagnostics = {
-								-- Get the language server to recognize the `vim` global
-								globals = { "vim" },
-							},
+							diagnostics = { globals = { "vim" } },
 							workspace = {
 								checkThirdParty = false,
 								library = {
@@ -95,66 +76,42 @@ return {
 									[vim.fn.expand("$VIMRUNTIME/lua/vim/lsp")] = true,
 								},
 							},
-							completion = {
-								callSnippet = "Replace",
-							},
+							completion = { callSnippet = "Replace" },
 						},
 					},
 				},
 			},
-			-- you can do any additional lsp server setup here
-			-- return true if you don't want this server to be setup with lspconfig
-			---@type table<string, fun(server:string, opts:_.lspconfig.options):boolean?>
 			setup = {
-				-- example to setup with typescript.nvim
 				-- tsserver = function(_, opts)
 				--   require("typescript").setup({ server = opts })
 				--   return true
 				-- end,
-				-- Specify * to use this function as a fallback for any server
 				-- ["*"] = function(server, opts) end,
 			},
 		},
-		---@param opts PluginLspOpts
 		config = function(plugin, opts)
-			-- setup autoformat
-			-- require("lazyvim.plugins.lsp.format").autoformat = opts.autoformat
-
-			-- setup formatting and keymaps
-			-- require("lazyvim.util").on_attach(function(client, buffer)
-			--   require("lazyvim.plugins.lsp.format").on_attach(client, buffer)
-			--   require("lazyvim.plugins.lsp.keymaps").on_attach(client, buffer)
-			-- end)
-
-			-- diagnostics
-			-- for name, icon in pairs(require("lazyvim.config").icons.diagnostics) do
-			--   name = "DiagnosticSign" .. name
-			--   vim.fn.sign_define(name, { text = icon, texthl = name, numhl = "" })
-			-- end
-			-- vim.diagnostic.config(opts.diagnostics)
-
-			local servers = opts.servers
 			local capabilities =
 				require("cmp_nvim_lsp").default_capabilities(vim.lsp.protocol.make_client_capabilities())
+			local servers = opts.servers
 
-			require("mason-lspconfig").setup({ ensure_installed = vim.tbl_keys(servers) })
-			require("mason-lspconfig").setup_handlers({
-				function(server)
-					local server_opts = servers[server] or {}
-					server_opts.capabilities = capabilities
-					if opts.setup[server] then
-						if opts.setup[server](server, server_opts) then
-							return
-						end
-					elseif opts.setup["*"] then
-						if opts.setup["*"](server, server_opts) then
-							return
-						end
-					end
-					require("lspconfig")[server].setup(server_opts)
-				end,
+			for name, cfg in pairs(servers) do
+				cfg.capabilities = capabilities
+
+				local skip = false
+				if opts.setup[name] then
+					skip = opts.setup[name](name, cfg) == true
+				elseif opts.setup["*"] then
+					skip = opts.setup["*"](name, cfg) == true
+				end
+
+				if not skip then
+					vim.lsp.config(name, cfg)
+				end
+			end
+
+			require("mason-lspconfig").setup({
+				ensure_installed = vim.tbl_keys(servers),
 			})
-			-- require('lspconfig').pyright.setup()
 		end,
 	},
 	-- formatters
@@ -184,10 +141,11 @@ return {
 			formatters_by_ft = {
 				lua = { "stylua" },
 				python = {
-					'ruff_fix', -- To fix lint errors. (ruff with argument --fix)
+					"ruff_fix", -- To fix lint errors. (ruff with argument --fix)
 					"ruff_format", -- To run the formatter. (ruff with argument format)
-          "ruff_organize_imports", --organize import
+					"ruff_organize_imports", --organize import
 				},
+				yaml = { "prettier" },
 			},
 		},
 		keys = { { "<leader>f", ':lua require("conform").format({async=true})<cr>', desc = "Format" } },
@@ -480,7 +438,14 @@ return {
 			{ "hrsh7th/cmp-path" },
 			{ "ray-x/cmp-treesitter" },
 			{ "hrsh7th/cmp-cmdline" },
-			{ "L3MON4D3/LuaSnip" },
+			{
+				"L3MON4D3/LuaSnip",
+				-- follow latest release.
+				version = "v2.*", -- Replace <CurrentMajor> by the latest released major (first number of latest release)
+				-- install jsregexp (optional!).
+				build = "make install_jsregexp",
+			},
+			-- { "L3MON4D3/LuaSnip" },
 			{ "hrsh7th/cmp-nvim-lua" },
 			{ "saadparwaiz1/cmp_luasnip" },
 			{ "rafamadriz/friendly-snippets" },
@@ -563,6 +528,9 @@ return {
 		},
 		config = function()
 			local saga = require("lspsaga")
+			vim.diagnostic.config({
+				virtual_text = true,
+			})
 
 			saga.setup({
 				scroll_preview = {
@@ -626,4 +594,14 @@ return {
 		end,
 	},
 	{ "nvim-treesitter/playground" },
+	{
+		"benomahony/uv.nvim",
+		config = function()
+			require("uv").setup({
+				keymaps = {
+					prefix = "<leader>U", -- Change prefix to <leader>u
+				},
+			})
+		end,
+	},
 }
