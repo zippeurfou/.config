@@ -1,9 +1,33 @@
-.zprivate
+# Private/secret configurations
+zsh/.zprivate
+
+# Generated files
+zsh/.zsh_sessions/
+zsh/.zcompdump*
+zsh/.zshrc.backup
+zsh/.zsh_history
+pyrightconfig.json
+
+# Third-party tools (not portable)
 act/
 gcloud/
 github-copilot/
 nvm/
 op/
-pyrightconfig.json
-zsh/.zsh_sessions/
-zsh/.zshrc.backup
+iterm2/
+
+# macOS
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+
+# Neovim lazy.nvim plugin directory
+nvim/lazy-lock.json
+
+# Atuin
+atuin/key
+
+# Password manager sensitive data
+pwmanager/.env
