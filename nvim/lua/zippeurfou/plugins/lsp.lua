@@ -1,47 +1,75 @@
 return {
-	-- lspconfig
+	-- Main LSP configuration
 	{
 		"neovim/nvim-lspconfig",
-		event = "BufReadPre",
 		dependencies = {
+			{ "mason-org/mason.nvim", opts = {} },
+			"mason-org/mason-lspconfig.nvim",
+			"WhoIsSethDaniel/mason-tool-installer.nvim",
+			{ "j-hui/fidget.nvim", opts = {} },
 			{ "folke/neoconf.nvim", cmd = "Neoconf", config = true },
 			{ "folke/neodev.nvim", opts = { experimental = { pathStrict = true } } },
-			"mason-org/mason.nvim",
-			"mason-org/mason-lspconfig.nvim",
-			"hrsh7th/cmp-nvim-lsp",
+			-- "saghen/blink.cmp",
 		},
-		opts = {
-			diagnostics = {
-				underline = true,
+		config = function()
+			-- diagnostic config
+			vim.diagnostic.config({
+				underline = { severity = vim.diagnostic.severity.ERROR },
 				update_in_insert = false,
-				virtual_text = { spacing = 4, prefix = "●" },
+				virtual_text = { spacing = 4, prefix = "●", source = true },
 				severity_sort = true,
-			},
-			autoformat = true,
-			format = {
-				formatting_options = nil,
-				timeout_ms = nil,
-			},
-			servers = {
+			})
+
+			-- LSP servers
+			local servers = {
 				jsonls = {},
 				bashls = {},
-				pyright = {
+				ruff = { enable = true, init_options = { settings = { organizeImports = false, fixAll = false } } },
+				ty = {
+					enable = true,
+					handlers = { ["textDocument/publishDiagnostics"] = function() end }
+				},
+				basedpyright = {
+					enable = true,
+					on_attach = function(client)
+            client.server_capabilities.hoverProvider = false
+            client.server_capabilities.completionProvider = false
+            client.server_capabilities.signatureHelpProvider = false
+            client.server_capabilities.definitionProvider = true
+            client.server_capabilities.referencesProvider = false
+            client.server_capabilities.documentHighlightProvider = false
+            client.server_capabilities.documentSymbolProvider = false
+            client.server_capabilities.codeActionProvider = false
+            client.server_capabilities.codeLensProvider = false
+            client.server_capabilities.documentFormattingProvider = false
+            client.server_capabilities.documentRangeFormattingProvider = false
+            client.server_capabilities.documentOnTypeFormattingProvider = false
+            client.server_capabilities.declarationProvider = false
+            client.server_capabilities.typeDefinitionProvider = false
+            client.server_capabilities.implementationProvider = false
+            client.server_capabilities.documentLinkProvider = false
+            client.server_capabilities.colorProvider = false
+            client.server_capabilities.foldingRangeProvider = false
+            client.server_capabilities.selectionRangeProvider = false
+            client.server_capabilities.semanticTokensProvider = false
+            client.server_capabilities.inlayHintProvider = false
+            client.server_capabilities.workspaceSymbolProvider = false
+            client.server_capabilities.executeCommandProvider = false
+            client.server_capabilities.renameProvider = true
+					end,
 					settings = {
 						python = {
 							analysis = {
+								typeCheckingMode = "off",
 								autoSearchPaths = true,
-								diagnosticMode = "openFilesOnly",
 								useLibraryCodeForTypes = true,
-								autoImportCompletions = true,
-								typeCheckingMode = "basic",
-								stubPath = "",
-								inlayHints = {
-									variableTypes = true,
-									functionReturnTypes = true,
-								},
+								diagnosticMode = "off",
+								autoImportCompletions = false,
 							},
+							linting = { enabled = false },
 						},
 					},
+					handlers = { ["textDocument/publishDiagnostics"] = function() end },
 				},
 				yamlls = {
 					settings = {
@@ -49,15 +77,8 @@ return {
 							validate = true,
 							hover = true,
 							completion = true,
-							format = {
-								enable = true,
-								singleQuote = false,
-								bracketSpacing = true,
-							},
-							schemaStore = {
-								enable = false,
-								url = "",
-							},
+							format = { enable = true, singleQuote = false, bracketSpacing = true },
+							schemaStore = { enable = false, url = "" },
 							schemas = {
 								["https://json.schemastore.org/github-workflow.json"] = "/.github/workflows/*",
 								["https://json.schemastore.org/kustomization.json"] = "kustomization.{yml,yaml}",
@@ -80,164 +101,80 @@ return {
 						},
 					},
 				},
-			},
-			setup = {
-				-- tsserver = function(_, opts)
-				--   require("typescript").setup({ server = opts })
-				--   return true
-				-- end,
-				-- ["*"] = function(server, opts) end,
-			},
-		},
-		config = function(plugin, opts)
+			}
+
+			-- cmp capabilities
 			local capabilities =
 				require("cmp_nvim_lsp").default_capabilities(vim.lsp.protocol.make_client_capabilities())
-			local servers = opts.servers
+			capabilities.general = capabilities.general or {}
+			capabilities.general.positionEncodings = { "utf-8", "utf-16" }
 
 			for name, cfg in pairs(servers) do
 				cfg.capabilities = capabilities
+			end
 
-				local skip = false
-				if opts.setup[name] then
-					skip = opts.setup[name](name, cfg) == true
-				elseif opts.setup["*"] then
-					skip = opts.setup["*"](name, cfg) == true
-				end
+			-- neoconf overrides
+			local neoconf = require("neoconf")
+			neoconf.setup()
 
-				if not skip then
-					vim.lsp.config(name, cfg)
+			local project_servers = neoconf.get("lspconfig")
+			if project_servers then
+				for server_name, config in pairs(project_servers) do
+					servers[server_name] = config
 				end
 			end
 
-			require("mason-lspconfig").setup({
-				ensure_installed = vim.tbl_keys(servers),
-			})
-		end,
-	},
-	-- formatters
-	-- {
-	--   "jose-elias-alvarez/null-ls.nvim",
-	--   event = "BufReadPre",
-	--   keys = { { "<leader>f", ":lua vim.lsp.buf.format { async = true }<cr>", desc = "Format" } },
-	--   dependencies = { "mason.nvim" },
-	--   opts = function()
-	--     local nls = require("null-ls")
-	--     return {
-	--       sources = {
-	--         -- nls.builtins.formatting.prettierd,
-	--         -- nls.builtins.formatting.stylua,
-	--         nls.builtins.formatting.black,
-	--         -- nls.builtins.formatting.shfmt,
-	--         -- nls.builtins.formatting.ruff,
-	--         -- nls.builtins.diagnostics.ruff,
-	--         -- nls.builtins.diagnostics.flake8,
-	--       },
-	--     }
-	--   end,
-	-- },
-	{
-		"stevearc/conform.nvim",
-		opts = {
-			formatters_by_ft = {
-				lua = { "stylua" },
-				python = {
-					"ruff_fix", -- To fix lint errors. (ruff with argument --fix)
-					"ruff_format", -- To run the formatter. (ruff with argument format)
-					"ruff_organize_imports", --organize import
-				},
-				yaml = { "prettier" },
-			},
-		},
-		keys = { { "<leader>f", ':lua require("conform").format({async=true})<cr>', desc = "Format" } },
-	},
+			-- register & enable LSPs using new 0.11 API
+			for server_name, config in pairs(servers) do
+				vim.lsp.config[server_name] = config
+				if config.enable ~= false then
+					vim.lsp.enable({ server_name })
+				end
+			end
 
-	-- cmdline tools and lsp servers
-	{
-
-		"williamboman/mason.nvim",
-		cmd = "Mason",
-		keys = { { "<leader>cm", "<cmd>Mason<cr>", desc = "Mason" } },
-		opts = {
-			ensure_installed = {
-				"stylua",
-				"shellcheck",
-				"shfmt",
-				"black",
+			-- mason installer
+			local mason_packages = {
+				"json-lsp",
+				"bash-language-server",
 				"ruff",
-				"pyright",
-				-- "python-lsp-server",
-				-- "ruff-lsp"
-			},
-		},
-		---@param opts MasonSettings | {ensure_installed: string[]}
-		config = function(plugin, opts)
-			require("mason").setup(opts)
-			local mr = require("mason-registry")
-			for _, tool in ipairs(opts.ensure_installed) do
-				local p = mr.get_package(tool)
-				if not p:is_installed() then
-					p:install()
-				end
-			end
-
-			-- vim.lsp.handlers['textDocument/signatureHelp'] = vim.lsp.with(
-			--   vim.lsp.handlers.signature_help, {
-			--     border = 'rounded',
-			--     close_events = {"CursorMoved", "BufHidden", "InsertCharPre"},
-			--   }
-			-- )
+				"ty",
+				"basedpyright",
+				"yaml-language-server",
+				"lua-language-server",
+				"stylua",
+			}
+			require("mason-tool-installer").setup({ ensure_installed = mason_packages })
 		end,
 	},
-	{
-		"hrsh7th/nvim-cmp",
-		config = function()
-			local luasnip_ok, luasnip = pcall(require, "luasnip")
-			local cmp_ok, cmp = pcall(require, "cmp")
-			local vscode_snippets_ok, vscode_snippets = pcall(require, "luasnip.loaders.from_vscode")
 
+	-- nvim-cmp configuration
+	{
+		"hrsh7th/cmp-nvim-lsp",
+		dependencies = {
+			{ "hrsh7th/nvim-cmp" },
+			{ "hrsh7th/cmp-buffer" },
+			{ "hrsh7th/cmp-path" },
+			{ "ray-x/cmp-treesitter" },
+			{ "hrsh7th/cmp-cmdline" },
+			{ "L3MON4D3/LuaSnip", version = "v2.*", build = "make install_jsregexp" },
+			{ "hrsh7th/cmp-nvim-lua" },
+			{ "saadparwaiz1/cmp_luasnip" },
+			{ "rafamadriz/friendly-snippets" },
+			{ "onsails/lspkind.nvim" },
+		},
+		config = function()
+			local _, luasnip = pcall(require, "luasnip")
+			local _, cmp = pcall(require, "cmp")
+			local _, vscode_snippets = pcall(require, "luasnip.loaders.from_vscode")
 			vscode_snippets.lazy_load()
 
-			-- Set completeopt to have a better completion experience
 			vim.o.completeopt = "menu,menuone,noinsert,noselect"
 			vim.o.pumheight = 15
-
-			-- Setup nvim-cmp.
-			local check_backspace = function()
-				local col = vim.fn.col(".") - 1
-				return col == 0 or vim.fn.getline("."):sub(col, col):match("%s")
-			end
 
 			local has_words_before = function()
 				local line, col = unpack(vim.api.nvim_win_get_cursor(0))
 				return col ~= 0
 					and vim.api.nvim_buf_get_lines(0, line - 1, line, true)[1]:sub(col, col):match("%s") == nil
-			end
-
-			local function handle_tab(fallback)
-				if cmp.visible() then
-					cmp.select_next_item()
-				elseif luasnip.expandable() then
-					luasnip.expand()
-				elseif luasnip.expand_or_jumpable() then
-					luasnip.expand_or_jump()
-				elseif check_backspace() then
-					fallback()
-				else
-					return false
-				end
-				return true
-			end
-
-			local function handle_tab_command(fallback)
-				if not handle_tab(fallback) then
-					cmp.complete()
-				end
-			end
-
-			local function handle_tab_insert(fallback)
-				if not handle_tab(fallback) then
-					fallback()
-				end
 			end
 
 			local tab_or_next = function(_)
@@ -247,7 +184,6 @@ return {
 					cmp.complete()
 				end
 			end
-
 			local tab_or_prev = function(_)
 				if cmp.visible() then
 					cmp.select_prev_item()
@@ -277,9 +213,11 @@ return {
 					fallback()
 				end
 			end
+
 			local merge = function(a, b)
 				return vim.tbl_deep_extend("force", {}, a, b)
 			end
+
 			local lspkind = require("lspkind")
 			local ts_utils = require("nvim-treesitter.ts_utils")
 			local source_mapping = {
@@ -292,15 +230,13 @@ return {
 				path = "[Path]",
 				nvim_lsp_signature_help = "[Sig]",
 			}
+
 			cmp.setup({
 				formatting = {
 					format = lspkind.cmp_format({
 						mode = "symbol_text",
 						maxwidth = 40,
-						-- preset = 'codicons',
-
 						before = function(entry, vim_item)
-							-- vim_item.kind = lspkind.presets.default[vim_item.kind]
 							vim_item.kind =
 								string.format("%s %s", lspkind.presets.default[vim_item.kind], vim_item.kind)
 							local menu = source_mapping[entry.source.name]
@@ -311,19 +247,14 @@ return {
 					}),
 				},
 				snippet = {
-					-- REQUIRED - you must specify a snippet engine
 					expand = function(args)
-						luasnip.lsp_expand(args.body) -- For `luasnip` users.
+						luasnip.lsp_expand(args.body)
 					end,
 				},
 				completion = { autocomplete = false },
 				window = {
 					completion = cmp.config.window.bordered(),
-					documentation = merge(cmp.config.window.bordered(), {
-						max_height = 15,
-						max_width = 60,
-						-- border="double"
-					}),
+					documentation = merge(cmp.config.window.bordered(), { max_height = 15, max_width = 60 }),
 				},
 				mapping = {
 					["<C-u>"] = cmp.mapping(cmp.mapping.scroll_docs(-4), { "i", "c" }),
@@ -331,60 +262,31 @@ return {
 					["<C-Space>"] = cmp.mapping(cmp.mapping.complete(), { "i", "c" }),
 					["<C-p>"] = cmp.mapping(cmp.mapping.select_prev_item(), { "i" }),
 					["<C-n>"] = cmp.mapping(cmp.mapping.select_next_item(), { "i" }),
-					-- ['<C-e>'] = cmp.mapping.close(),
-					-- ['<C-e>'] = cmp.config.disable,
 					["<C-e>"] = cmp.mapping.abort(),
 					["<CR>"] = cmp.mapping.confirm({ select = true }),
 					["<NL>"] = cmp.mapping.confirm({ select = false }),
-					["<Tab>"] = cmp.mapping({
-						i = super_tab,
-						s = super_tab,
-						c = tab_or_next,
-					}),
-					["<S-Tab>"] = cmp.mapping({
-						i = super_tab_shift,
-						s = super_tab_shift,
-						c = tab_or_prev,
-					}),
+					["<Tab>"] = cmp.mapping({ i = super_tab, s = super_tab, c = tab_or_next }),
+					["<S-Tab>"] = cmp.mapping({ i = super_tab_shift, s = super_tab_shift, c = tab_or_prev }),
 				},
-				experimental = {
-					ghost_text = {
-						hl_group = "LspCodeLens",
-					},
-				},
+				experimental = { ghost_text = { hl_group = "LspCodeLens" } },
 				enabled = function()
 					return vim.api.nvim_buf_get_option(0, "buftype") ~= "prompt" or require("cmp_dap").is_dap_buffer()
 				end,
 				sources = cmp.config.sources({
-					-- { name = "cody", max_item_count = 5 },
 					{
 						name = "nvim_lsp",
 						max_item_count = 15,
 						entry_filter = function(entry, context)
-							-- local log = function(message)
-							--   local log_file_path = './debug.txt'
-							--   local log_file = io.open(log_file_path, "a")
-							--   io.output(log_file)
-							--   io.write(message.."\n")
-							--   io.close(log_file)
-							-- end
 							local kind = entry:get_kind()
 							local node = ts_utils.get_node_at_cursor():type()
 							local is_parent_class = (ts_utils.get_node_at_cursor():parent() ~= nil)
 								and (ts_utils.get_node_at_cursor():parent():type() == "class_definition")
-							-- if node == "ERROR" and kind == 6 then
-							-- log("Got an issue")
-							-- log('END')
-							-- end
+
 							if (node == "argument_list" or node == "ERROR") and context.filetype == "python" then
 								local str = entry:get_word()
 								local txt = string.sub(str, string.len(str))
-								-- 6 == "Variable"
-								-- if we have a variable and it finish with = we show it
 								if kind == 6 and txt == "=" then
 									return true
-								-- 7 == "Class"
-								-- if we have an error
 								elseif kind == 7 and is_parent_class then
 									return true
 								else
@@ -394,100 +296,40 @@ return {
 							return true
 						end,
 					},
-					-- { name = "nvim_lsp_signature_help", max_item_count = 5 },
 					{ name = "luasnip", max_item_count = 5 },
 					{ name = "treesitter", max_item_count = 5 },
 					{ name = "buffer", max_item_count = 5 },
 					{ name = "nvim_lua" },
 					{ name = "path" },
 					{ name = "cody", max_item_count = 2 },
-					-- { name = 'nvim_lsp' },
-					-- { name = 'luasnip' }, -- For luasnip users.
-					-- { name = "buffer" },
-					-- { name = "path" },
 				}),
 			})
 
-			-- Use buffer source for `/`.
-			cmp.setup.cmdline("/", {
-				sources = {
-					{ name = "buffer" },
-				},
-			})
-			-- Add cmp completion
-			cmp.setup.filetype({ "dap-repl", "dapui_watches", "dapui_hover" }, {
-				sources = {
-					{ name = "dap" },
-					{ name = "path" },
-				},
-			})
-
-			-- Use cmdline & path source for ':'.
-			cmp.setup.cmdline(":", {
-				sources = cmp.config.sources({
-					{ name = "path" },
-				}, {
-					{ name = "cmdline" },
-				}),
-			})
+			cmp.setup.cmdline("/", { sources = { { name = "buffer" } } })
+			cmp.setup.filetype(
+				{ "dap-repl", "dapui_watches", "dapui_hover" },
+				{ sources = { { name = "dap" }, { name = "path" } } }
+			)
+			cmp.setup.cmdline(":", { sources = cmp.config.sources({ { name = "path" } }, { { name = "cmdline" } }) })
 		end,
-		dependencies = {
-			{ "hrsh7th/nvim-cmp" },
-			{ "hrsh7th/cmp-nvim-lsp" },
-			{ "hrsh7th/cmp-buffer" },
-			{ "hrsh7th/cmp-path" },
-			{ "ray-x/cmp-treesitter" },
-			{ "hrsh7th/cmp-cmdline" },
-			{
-				"L3MON4D3/LuaSnip",
-				-- follow latest release.
-				version = "v2.*", -- Replace <CurrentMajor> by the latest released major (first number of latest release)
-				-- install jsregexp (optional!).
-				build = "make install_jsregexp",
-			},
-			-- { "L3MON4D3/LuaSnip" },
-			{ "hrsh7th/cmp-nvim-lua" },
-			{ "saadparwaiz1/cmp_luasnip" },
-			{ "rafamadriz/friendly-snippets" },
-			-- {"hrsh7th/cmp-nvim-lsp-signature-help"},
-			{ "onsails/lspkind.nvim" },
-		},
 	},
+
+	-- Lspsaga
 	{
 		"nvimdev/lspsaga.nvim",
 		event = "BufRead",
 		keys = {
 			{ "gh", "<cmd>Lspsaga finder<CR>", desc = "LSP Finder" },
-			-- Code action
-			{
-				"<leader>ca",
-				"<cmd>Lspsaga code_action<CR>",
-				mode = { "n", "v" },
-				desc = "[C]ode [A]ction",
-			},
-			-- Rename
+			{ "<leader>ca", "<cmd>Lspsaga code_action<CR>", mode = { "n", "v" }, desc = "[C]ode [A]ction" },
 			{ "grr", "<cmd>Lspsaga rename<CR>", desc = "[R]ename in file" },
-			-- Rename word in whole project
 			{ "grp", "<cmd>Lspsaga rename ++project<CR>", desc = "[R]ename in [P]roject" },
-			-- Peek Definition
-			-- you can edit the definition file in this float window
-			-- also support open/vsplit/etc operation check definition_action_keys
-			-- support tagstack C-t jump back
-			{ "gdp", "<cmd>Lspsaga peek_definition<CR>", desc = "[D]definition [P]eek" },
-			-- Go to Definition
+			{ "gdp", "<cmd>Lspsaga peek_definition<CR>", desc = "[D]efinition [P]eek" },
 			{ "gdd", "<cmd>Lspsaga goto_definition<CR>", desc = "[D]efinition Go" },
-			-- Show line diagnostics you can pass argument ++unfocus to make
-			-- show_line_diagnostics float window unfocus
 			{ "<leader>sl", "<cmd>Lspsaga show_line_diagnostics<CR>", desc = "[S]how [L]ine diagnostics" },
-			-- Show cursor diagnostic
-			-- also like show_line_diagnostics  support pass ++unfocus
 			{ "<leader>sc", "<cmd>Lspsaga show_cursor_diagnostics<CR>", desc = "[S]how [C]ursor diagnostics" },
-			-- Show buffer diagnostic
 			{ "<leader>sb", "<cmd>Lspsaga show_buf_diagnostics<CR>", desc = "[S]how [B]uffer diagnostics" },
-			-- Diagnostic jump can use `<c-o>` to jump back
 			{ "[e", "<cmd>Lspsaga diagnostic_jump_prev<CR>", desc = "Go to Diagnostic Previous" },
 			{ "]e", "<cmd>Lspsaga diagnostic_jump_next<CR>", desc = "Go to Diagnostic Next" },
-			-- Diagnostic jump with filter like Only jump to error
 			{
 				"[E",
 				function()
@@ -502,41 +344,16 @@ return {
 				end,
 				desc = "Go to Diagnostic Error Next",
 			},
-			-- Toggle Outline
 			{ "<leader>o", "<cmd>Lspsaga outline<CR>", desc = "[O]utline right bar" },
-			-- use o to fold,e to jump to it, q to quit
-			-- Hover Doc
-			-- if there has no hover will have a notify no information available
-			-- to disable it just Lspsaga hover_doc ++quiet
-			-- press twice it will jump into hover window
 			{ "KD", "<cmd>Lspsaga hover_doc<CR>", desc = "Show Doc Hover" },
-			-- if you want keep hover window in right top you can use ++keep arg
-			-- notice if you use hover with ++keep you press this keymap it will
-			-- close the hover window .if you want jump to hover window must use
-			-- wincmd command <C-w>w
 			{ "KK", "<cmd>Lspsaga hover_doc ++keep<CR>", desc = "Show doc Keep" },
-			-- Callhierarchy
 			{ "<Leader>ci", "<cmd>Lspsaga incoming_calls<CR>", desc = "[C]ode Calls [I]ncoming" },
 			{ "<Leader>co", "<cmd>Lspsaga outgoing_calls<CR>", desc = "[C]ode Calls [O]utgoing" },
-			-- Float terminal
-			{
-				"<M-d>",
-				"<cmd>Lspsaga term_toggle<CR>",
-				mode = { "n", "t" },
-				desc = "Show Terminal",
-			},
+			{ "<M-d>", "<cmd>Lspsaga term_toggle<CR>", mode = { "n", "t" }, desc = "Show Terminal" },
 		},
 		config = function()
-			local saga = require("lspsaga")
-			vim.diagnostic.config({
-				virtual_text = true,
-			})
-
-			saga.setup({
-				scroll_preview = {
-					scroll_down = "<C-d>",
-					scroll_up = "<C-u>",
-				},
+			require("lspsaga").setup({
+				scroll_preview = { scroll_down = "<C-d>", scroll_up = "<C-u>" },
 				definition = {
 					edit = "<C-c>o",
 					vsplit = "<C-c>v",
@@ -546,10 +363,11 @@ return {
 					close = "<Esc>",
 				},
 			})
-			-- saga.init_lsp_saga()
 		end,
 		dependencies = { { "nvim-tree/nvim-web-devicons" } },
 	},
+
+	-- Trouble
 	{
 		"folke/trouble.nvim",
 		cmd = { "TroubleToggle", "Trouble" },
@@ -559,28 +377,23 @@ return {
 			{ "<leader>sw", "<cmd>TroubleToggle workspace_diagnostics<cr>", desc = "Workspace Diagnostics (Trouble)" },
 		},
 	},
-	-- {
-	--   'windwp/nvim-autopairs',
-	--   config = function()
-	--     require("nvim-autopairs").setup()
-	--     local cmp_autopairs = require('nvim-autopairs.completion.cmp')
-	--     local cmp = require('cmp')
-	--     cmp.event:on(
-	--       'confirm_done',
-	--       cmp_autopairs.on_confirm_done()
-	--     )
-	--   end,
-	-- },
-	-- A pretty diagnostics
+
+	-- conform
 	{
-		"folke/trouble.nvim",
-		config = function()
-			require("trouble").setup({})
-		end,
-		dependencies = {
-			{ "neovim/nvim-lspconfig" },
+		"stevearc/conform.nvim",
+		opts = {
+			formatters_by_ft = {
+				lua = { "stylua" },
+				python = { "ruff_fix", "ruff_format", "ruff_organize_imports" },
+				yaml = { "prettier" },
+				typescript = { "prettier" },
+				json = { "prettier" },
+			},
 		},
+		keys = { { "<leader>f", ':lua require("conform").format({async=true})<cr>', desc = "Format" } },
 	},
+
+	-- lsp_signature
 	{
 		"ray-x/lsp_signature.nvim",
 		config = function()
@@ -589,19 +402,21 @@ return {
 				bind = true,
 				hint_prefix = "",
 				extra_trigger_chars = { "=", "," },
-				-- floating_window = false,
 			})
 		end,
 	},
+
+	-- optional
 	{ "nvim-treesitter/playground" },
 	{
 		"benomahony/uv.nvim",
 		config = function()
-			require("uv").setup({
-				keymaps = {
-					prefix = "<leader>U", -- Change prefix to <leader>u
-				},
-			})
+			require("uv").setup({ keymaps = { prefix = "<leader>U" } })
 		end,
+	},
+	{
+		"pmizio/typescript-tools.nvim",
+		dependencies = { "nvim-lua/plenary.nvim" },
+		opts = {},
 	},
 }

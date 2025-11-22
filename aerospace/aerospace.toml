@@ -114,15 +114,15 @@ alt-8 = 'workspace 8'
 alt-9 = 'workspace 9'
 alt-a = 'workspace Amazon'
 alt-b = 'workspace Browser' # Browser
-# alt-c = 'workspace C'
-# alt-d = 'workspace D'
+alt-c = 'workspace Docker' # will have to change this one. Most likely changed the nvim shortcut
+# alt-d = 'workspace Docker' # Docker # conflict with nvim terminal :/
 alt-e = 'workspace Explorer' # Explorer
 # alt-f = 'workspace F'
 # alt-g = 'workspace G'
 # alt-i = 'workspace I'
 alt-m = 'workspace Mendeley' # Mendeley
 # alt-n = 'workspace N'
-# alt-o = 'workspace O'
+alt-o = 'workspace OnePassword' # OnePassword
 alt-p = 'workspace Personal' # Personal stuff
 # alt-q = 'workspace Q'
 # alt-r = 'workspace R'
@@ -148,7 +148,7 @@ alt-shift-9 = 'move-node-to-workspace 9'
 alt-shift-a = 'move-node-to-workspace Amazon'
 alt-shift-b = 'move-node-to-workspace Browser'
 # alt-shift-c = 'move-node-to-workspace C'
-# alt-shift-d = 'move-node-to-workspace D'
+alt-shift-d = 'move-node-to-workspace Docker'
 alt-shift-e = 'move-node-to-workspace Explorer'
 # alt-shift-f = 'move-node-to-workspace F'
 # alt-shift-g = 'move-node-to-workspace G'
@@ -204,9 +204,25 @@ run = "move-node-to-workspace Terminal"
 if.app-id = 'com.apple.finder'
 run = "move-node-to-workspace Explorer"
 
-# [[on-window-detected]]
-# if.app-id = 'com.google.Chrome'
-# run = "move-node-to-workspace Browser"
+[[on-window-detected]]
+if.app-id="com.mitchellh.ghostty"
+run= [
+  # "layout tiling",
+  "layout floating",
+]
+
+[[on-window-detected]]
+if.app-id = 'com.google.Chrome'
+run = "move-node-to-workspace 8"
+
+[[on-window-detected]]
+if.app-id = 'com.electron.dockerdesktop'
+run = "move-node-to-workspace Docker"
+
+[[on-window-detected]]
+if.app-id = 'com.1password.1password'
+run = "move-node-to-workspace OnePassword"
+
 
 [[on-window-detected]]
 if.app-id = 'company.thebrowser.Browser'

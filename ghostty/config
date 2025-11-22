@@ -1,1 +1,52 @@
-theme = "tokyonight_night"
+theme = "/Users/mferradou/Projects/tokyonight.nvim/extras/ghostty/tokyonight_night"
+shell-integration = "zsh"
+macos-titlebar-style = tabs
+
+# keybindings
+keybind = cmd+g>r=reload_config
+keybind = cmd+g>x=close_surface
+
+keybind = cmd+g>n=new_window
+
+# tabs
+keybind = cmd+g>c=new_tab
+keybind = cmd+g>]=next_tab
+keybind = cmd+g>[=previous_tab
+keybind = cmd+g>comma=move_tab:-1
+keybind = cmd+g>period=move_tab:1
+
+# quick tab switch
+keybind = cmd+g>1=goto_tab:1
+keybind = cmd+g>2=goto_tab:2
+keybind = cmd+g>3=goto_tab:3
+keybind = cmd+g>4=goto_tab:4
+keybind = cmd+g>5=goto_tab:5
+keybind = cmd+g>6=goto_tab:6
+keybind = cmd+g>7=goto_tab:7
+keybind = cmd+g>8=goto_tab:8
+keybind = cmd+g>9=goto_tab:9
+
+# split
+keybind = cmd+g>\=new_split:right
+keybind = cmd+g>-=new_split:down
+
+keybind = cmd+g>j=goto_split:bottom
+keybind = cmd+g>k=goto_split:top
+keybind = cmd+g>h=goto_split:left
+keybind = cmd+g>l=goto_split:right
+
+keybind = cmd+g>m=toggle_split_zoom
+
+keybind = cmd+g>e=equalize_splits
+
+# other
+copy-on-select = clipboard
+
+# fonts stuff
+# font-family = "HackNFM-Regular"
+# font-family-bold = "HackNFM-Bold"
+# font-family-italic = "HackNFM-Italic"
+# font-family-bold-italic = "HackNFM-BoldItalic"
+# font-family = "Monaco"
+font-family = "Hack Nerd Font Mono"
+font-size = 13.0

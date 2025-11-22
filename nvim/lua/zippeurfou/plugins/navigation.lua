@@ -137,6 +137,15 @@ return {
 					},
 				},
 			},
+			pickers = {
+				buffers = {
+					mappings = {
+						n = {
+							["<S-D>"] = "delete_buffer",
+						}
+					}
+				}
+			},
 		},
 	},
 	{
@@ -211,5 +220,9 @@ return {
 		opts = {},
 		-- Optional dependencies
 		dependencies = { "nvim-tree/nvim-web-devicons" },
+	},
+	{
+		"stevearc/quicker.nvim",
+		ft = "qf",
 	},
 }

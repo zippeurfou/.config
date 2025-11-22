@@ -143,6 +143,10 @@ map("n", "<leader>u", function()
 		vim.cmd("wincmd l")
 	end
 end, "[U]nsaved Changes DiffView")
+-- LSP inlay hints toggle
+map("n", "<leader>ch", function()
+	vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled())
+end, "[C]ode inlay [H]ints toggle")
 -- screenshot stuff
 map("v", "<leader>S", "<CMD>SSSelected<CR>",  "Screenshot" )
 -- Copilot things
@@ -151,3 +155,8 @@ vim.keymap.set("i", "<C-J>", 'copilot#Accept("\\<CR>")', {
 	replace_keycodes = false,
 })
 vim.g.copilot_no_tab_map = true
+-- Leap plugin remap
+vim.keymap.set({'n', 'x', 'o'}, 's',  '<Plug>(leap-forward)')
+vim.keymap.set({'n', 'x', 'o'}, 'S',  '<Plug>(leap-backward)')
+vim.keymap.set('n',             'gs', '<Plug>(leap-from-window)')
+

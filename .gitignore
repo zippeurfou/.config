@@ -1,1 +1,9 @@
 .zprivate
+act/
+gcloud/
+github-copilot/
+nvm/
+op/
+pyrightconfig.json
+zsh/.zsh_sessions/
+zsh/.zshrc.backup

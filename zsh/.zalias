@@ -41,16 +41,88 @@ create_project_function() {
     gh repo create "$folder_name" --private --license mit --gitignore=Python
     gh repo clone "$folder_name"
     cd ~/Projects/"$folder_name" || return
-    pyenv virtualenv "$virtualenv_version" "$folder_name"
-    pyenv local "$folder_name"
     local readme_content="# $folder_name\n\n## Description\n\nAdd project description here.\n\n## Getting Started\n\nAdd instructions on how to get started with the project.\n"
     echo "$readme_content" > README.md
+    uv init --python "$virtualenv_version" --name "$folder_name"
     git add README.md
     git commit -m "Initial commit with README"
     git push
 
 
 }
+
+
+# Function to export a keyring variable
+keyring_export() {
+  local var="$1"
+  local service="${2:-system}"
+
+  local value
+  value=$(security find-generic-password -s "$service" -a "$var" -g 2>&1 | awk -F\" '/password:/ {print $2}')
+
+  if [[ -z "$value" ]]; then
+    echo "⚠️ Failed to load password for $var (service: $service)" >&2
+    return 1
+  fi
+
+  export "$var=$value"
+}
+
+# opencode setup automation
+opencode_setup() {
+    local upgrade_marker="/tmp/.opencode_brew_upgrade_$(date +%Y%m%d)"
+    
+    # Only upgrade once per day
+    if [[ ! -f "$upgrade_marker" ]]; then
+        echo "🔄 Upgrading opencode..."
+        if brew upgrade sst/tap/opencode; then
+            echo "✅ opencode upgraded successfully"
+            touch "$upgrade_marker"
+        else
+            echo "⚠️ opencode upgrade failed or already up to date"
+            touch "$upgrade_marker"  # Still mark as done to avoid repeated attempts
+        fi
+    else
+        echo "⏭️ Skipping brew upgrade (already done today)"
+    fi
+    
+    # Try to export credentials first
+    echo "📋 Attempting to export AWS credentials..."
+    local cred_output
+    cred_output=$(aws configure export-credentials --profile data --format env 2>&1)
+    
+    if echo "$cred_output" | grep -q "Token has expired\|expired and refresh failed\|Unable to load SSO Token"; then
+        echo "🔐 AWS tokens expired, logging into AWS SSO..."
+        if aws sso login --profile data; then
+            echo "✅ AWS SSO login successful"
+            echo "📋 Exporting AWS credentials..."
+            if eval "$(aws configure export-credentials --profile data --format env)"; then
+                echo "✅ AWS credentials exported successfully"
+                echo "⏰ Credentials expire at: $AWS_CREDENTIAL_EXPIRATION"
+            else
+                echo "❌ Failed to export AWS credentials after login"
+                return 1
+            fi
+        else
+            echo "❌ AWS SSO login failed"
+            return 1
+        fi
+    elif echo "$cred_output" | grep -q "export AWS_ACCESS_KEY_ID"; then
+        eval "$cred_output"
+        echo "✅ AWS credentials exported successfully"
+        echo "⏰ Credentials expire at: $AWS_CREDENTIAL_EXPIRATION"
+    else
+        echo "❌ Failed to export AWS credentials: $cred_output"
+        return 1
+    fi
+    
+    echo "🚀 Starting opencode..."
+    opencode
+}
+
+# Alias for convenience
+alias oc='opencode_setup'
+
 # this allow me to do d and a number to access them
 alias d='dirs -v'
 for index ({1..9}) alias "$index"="cd +${index}"; unset index

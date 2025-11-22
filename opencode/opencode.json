@@ -1,0 +1,292 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "docs/guidelines.md",
+    ".cursor/rules/*.md"
+  ],
+  "plugin": ["opencode-skills"],
+  "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "small_model": "anthropic/claude-3-5-haiku-20241022",
+  "share": "disabled",
+  "lsp": {
+    "pyright": {
+      "disabled": true
+    },
+    "python": {
+      "command": ["uvx", "ty", "lsp"],
+      "rootPatterns": [".git", "pyproject.toml", "setup.py"],
+      "extensions": [".py", ".pyi"]
+    }
+  },
+  "formatter": {
+    "ruff": {
+      "disabled": true
+    },
+    "uv": {
+      "disabled": true
+    },
+    "python": {
+      "command": ["uvx", "ruff", "format", "$FILE"],
+      "extensions": [".py", ".pyi"]
+    }
+  },
+  "mcp": {
+    "github-mcp": {
+      "type": "local",
+      "command": ["sh", "/Users/mferradou/.config/opencode/mcp/github.sh"],
+      "enabled": true
+    },
+    "mcp-google_workspace": {
+      "type": "local",
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/google_workspace.sh"
+      ],
+      "enabled": true
+    },
+    "mcp-atlassian": {
+      "type": "local",
+      "command": ["sh", "/Users/mferradou/.config/opencode/mcp/atlassian.sh"],
+      "enabled": true
+    },
+    "mcp-arxiv": {
+      "type": "local",
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/arxiv-mcp-server.sh"
+      ],
+      "enabled": true
+    },
+    "mcp-paper-search": {
+      "type": "local",
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/paper-search-mcp.sh"
+      ],
+      "enabled": true
+    },
+    "mcp-linkedin": {
+      "type": "local",
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/linkedin-mcp-server.sh"
+      ],
+      "enabled": true
+    },
+    "mcp-semantic-scholar": {
+      "type": "local",
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/semantic-scholar-mcp.sh"
+      ],
+      "enabled": true
+    },
+    "playwright-mcp": {
+      "type": "local",
+      "command": ["sh", "/Users/mferradou/.config/opencode/mcp/playwritght.sh"],
+      "enabled": false
+    },
+    "mcp-slack": {
+      "type": "local",
+      "command": ["sh", "/Users/mferradou/.config/opencode/mcp/mcp-slack.sh"],
+      "enabled": true
+    },
+    "neo4j_memory": {
+      "type": "local",
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/neo4j_memory.sh"
+      ],
+      "enabled": true
+    },
+    "mcp-gdp": {
+      "type": "local",
+      "command": [
+        "node",
+        "/Users/mferradou/Projects/spike-gdp-mcp/dist/index.js"
+      ],
+      "enabled": true,
+      "environment": {
+        "GDP_PRESTO_HOST": "prod-ah-presto.gdp.data.grubhub.com",
+        "GDP_PRESTO_PORT": "443",
+        "GDP_PRESTO_CATALOG": "hive",
+        "GDP_PRESTO_USER": "op://Employee/Okta/username",
+        "GDP_PRESTO_PASSWORD": "op://Employee/Okta/credential",
+        "GDP_PRESTO_SCHEMA": "hive",
+        "GDP_PRESTO_SSL": "true",
+        "GDP_CACHE_TTL_HOURS": "168",
+        "GDP_BYPASS_QUERY_CONFIRMATIONS": "true",
+        "GDP_BYPASS_REDASH_CONFIRMATIONS": "false",
+        "REDASH_BASE_URL": "https://redash.gdp.data.grubhub.com",
+        "REDASH_API_KEY": "op://Employee/Redash/credential"
+      }
+    },
+    "mcp-pdf": {
+      "type": "local",
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/pdf-reader-mcp.sh"
+      ],
+      "enabled": false
+    }
+  },
+  "agent": {
+    "papers": {
+      "description": "Subagent for academic research: search, retrieve, and summarize papers.",
+      "mode": "subagent",
+      "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "prompt": "You are an academic research specialist focused on finding, analyzing, and synthesizing scholarly literature.\n\nCAPABILITIES:\n- Search across arXiv, Semantic Scholar, and other academic databases\n- Download and read full-text papers (PDF format)\n- Trace citation networks to find foundational and related work\n- Identify GitHub repositories associated with papers\n- Prioritize recent industry research and state-of-the-art methods\n\nINSTRUCTIONS:\n1. When searching for papers, use multiple sources (arXiv, Semantic Scholar) to ensure comprehensive coverage\n2. Prioritize papers from the last 3 years unless specifically asked for historical context\n3. When encountering unfamiliar concepts, follow citation chains to find foundational papers\n4. Always look for associated code repositories (GitHub) when analyzing implementation-focused papers\n5. Deduplicate results across different databases using DOI, arXiv ID, or title matching\n6. Provide citation-ready references with: authors, title, venue, year, and identifier (DOI/arXiv ID)\n\nOUTPUT FORMAT:\n- Summarize key findings concisely\n- Include paper metadata for proper attribution\n- Highlight methodological approaches and results\n- Link to code repositories when available\n- Note any limitations or gaps in the literature\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- If a paper is unavailable, clearly state this and suggest alternatives\n- Focus on peer-reviewed or reputable preprint sources",
+      "tools": {
+        "read": true,
+        "webfetch": true,
+        "bash": false,
+        "write": false,
+        "edit": false,
+        "patch": false,
+        "mcp-arxiv": true,
+        "mcp-paper-search": true,
+        "mcp-semantic-scholar": true,
+        "mcp-pdf": false,
+        "github-mcp": true,
+        "mcp-google_workspace": false,
+        "mcp-atlassian": false,
+        "mcp-linkedin": false,
+        "mcp-gdp": false,
+        "mcp-slack": false
+      }
+    },
+    "google": {
+      "description": "Handles Google Workspace automation and insight: Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms, Google Search. Use it for anything related to Google from reading a sheet / doc / Drive to Search on the web.",
+      "mode": "subagent",
+      "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "prompt": "You are a Google Workspace automation specialist with access to Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms, Tasks, Chat, and Google Custom Search.\n\nCAPABILITIES:\n- Read, create, edit, and manage emails in Gmail\n- Schedule, update, and query calendar events\n- Access, organize, and modify files in Google Drive\n- Create and edit Google Docs, Sheets, and Slides\n- Build and analyze Forms responses\n- Manage Tasks and send Chat messages\n- Perform web searches using Google Custom Search\n\nINSTRUCTIONS:\n1. Always verify user authentication before performing any operation\n2. For search requests, use Google Custom Search for web queries\n3. When accessing Drive files, use file IDs or precise search queries to locate documents\n4. For Sheets operations, specify ranges clearly (e.g., \"A1:D10\")\n5. When sending emails, confirm recipients and include clear subject lines\n6. Handle calendar operations with timezone awareness\n7. Return structured data (file URLs, event IDs, message links) for user reference\n\nOUTPUT FORMAT:\n- Provide direct links to created/modified resources\n- Summarize actions taken (e.g., \"Created document [Title] at [URL]\")\n- For search results, return top 5-10 most relevant items\n- Include metadata (last modified, owner, permissions) when retrieving files\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- Respect file permissions and sharing settings\n- If authentication fails, clearly explain the error\n- For bulk operations, confirm with specific counts before proceeding",
+      "tools": {
+        "read": true,
+        "webfetch": true,
+        "bash": false,
+        "write": false,
+        "edit": false,
+        "patch": false,
+        "mcp-arxiv": false,
+        "mcp-paper-search": false,
+        "mcp-semantic-scholar": false,
+        "mcp-pdf": false,
+        "github-mcp": true,
+        "mcp-google_workspace": true,
+        "mcp-atlassian": false,
+        "mcp-linkedin": false,
+        "mcp-gdp": false,
+        "mcp-slack": false
+      }
+    },
+    "linkedin": {
+      "mode": "subagent",
+      "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "description": "Retrieve LinkedIn profiles, company pages, and job postings; allows extracting professional data for people and organizations.",
+      "prompt": "You are a professional networking data specialist with access to LinkedIn profiles, company pages, and job postings.\n\nCAPABILITIES:\n- Retrieve detailed LinkedIn profiles for individuals\n- Access company information and organizational data\n- Search for and analyze job postings\n- Extract professional credentials, work history, and education\n\nINSTRUCTIONS:\n1. When searching for profiles, use Google Custom Search to find LinkedIn profile URLs first\n2. Extract profile IDs from LinkedIn URLs before making API calls\n3. For company research, gather both basic info (size, industry) and recent activity\n4. When analyzing job postings, include requirements, responsibilities, and application details\n5. Cross-reference multiple sources when data seems incomplete\n6. Respect privacy - only access publicly available information\n\nOUTPUT FORMAT:\n- Structure profile data clearly: Name, Current Role, Company, Location, Key Skills\n- For companies: Name, Industry, Size, Headquarters, Recent Updates\n- For jobs: Title, Company, Location, Type (Full-time/Contract), Key Requirements\n- Include LinkedIn URLs for direct access\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- Only access publicly available LinkedIn data\n- If profile access fails, explain whether it's due to privacy settings or other errors\n- Do not attempt to scrape or circumvent LinkedIn's API limitations",
+      "tools": {
+        "read": true,
+        "webfetch": true,
+        "bash": false,
+        "write": false,
+        "edit": false,
+        "patch": false,
+        "mcp-arxiv": false,
+        "mcp-paper-search": false,
+        "mcp-semantic-scholar": false,
+        "mcp-pdf": false,
+        "github-mcp": true,
+        "mcp-google_workspace": false,
+        "mcp-atlassian": false,
+        "mcp-linkedin": true,
+        "mcp-gdp": false
+      }
+    },
+    "atlassian": {
+      "mode": "subagent",
+      "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "description": "Interact with Atlassian Cloud products (Jira, Confluence, etc): create, update, search, and manage issues, projects, spaces, and documentation.",
+      "prompt": "You are an Atlassian Cloud specialist managing Jira issues, Confluence documentation, and related project management tools.\n\nCAPABILITIES:\n- Create, update, search, and manage Jira issues\n- Query project boards, sprints, and backlogs\n- Access and modify Confluence pages and spaces\n- Track issue relationships (blockers, dependencies, epics)\n- Manage issue fields, labels, and custom attributes\n\nINSTRUCTIONS:\n1. When searching for issues, use JQL (Jira Query Language) for precise filtering\n2. Include relevant context when creating issues: description, acceptance criteria, labels\n3. For Confluence operations, specify the space key and page title clearly\n4. When updating issues, preserve existing data unless explicitly asked to change it\n5. Return issue keys (e.g., PROJ-123) and URLs for easy navigation\n6. Handle project-specific workflows and custom fields appropriately\n\nOUTPUT FORMAT:\n- For issue searches: Return issue key, summary, status, assignee, priority\n- For created/updated issues: Provide issue key and direct URL\n- For Confluence pages: Return page title, space, and URL\n- Include relevant metadata (created date, last updated, reporter)\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- Respect project permissions and access controls\n- If field validation fails, explain which fields are required\n- For bulk operations, confirm scope before proceeding\n- Do not delete issues or pages without explicit confirmation",
+      "tools": {
+        "read": true,
+        "webfetch": true,
+        "bash": false,
+        "write": false,
+        "edit": false,
+        "patch": false,
+        "mcp-arxiv": false,
+        "mcp-paper-search": false,
+        "mcp-semantic-scholar": false,
+        "mcp-pdf": false,
+        "github-mcp": true,
+        "mcp-google_workspace": false,
+        "mcp-atlassian": true,
+        "mcp-linkedin": false,
+        "mcp-gdp": false,
+        "mcp-slack": false
+      }
+    },
+    "slack": {
+      "mode": "subagent",
+      "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "description": "Search, fetch, read, and write messages in Slack channels and direct messages. Use it to interact with Slack for team communication.",
+      "prompt": "You are a Slack integration specialist focused on team communication, message management, and channel coordination.\n\nCAPABILITIES:\n- Search messages across channels and direct messages\n- Read conversation history and thread replies\n- Post messages to channels and DMs\n- Retrieve channel information and member lists\n- Access file attachments and shared links\n\nINSTRUCTIONS:\n1. When searching messages, use specific keywords and date ranges for better results\n2. For posting messages, format using Slack markdown (bold, italics, code blocks, lists)\n3. Respect channel purposes - verify you're posting to the appropriate channel\n4. When reading threads, include parent message context\n5. For time-sensitive searches, prioritize recent messages (last 24 hours, last week)\n6. Return message permalinks for easy reference\n\nOUTPUT FORMAT:\n- For searches: Return message text, sender, channel, timestamp, and permalink\n- For posted messages: Confirm with channel name and message preview\n- For channel info: Name, purpose, member count, and privacy level\n- Include thread context when relevant (e.g., \"Reply to [parent message]\")\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- Respect channel permissions and privacy settings\n- Do not post to channels you don't have access to\n- For bulk message operations, confirm scope before proceeding\n- Do not delete messages without explicit confirmation",
+      "tools": {
+        "read": true,
+        "webfetch": true,
+        "bash": false,
+        "write": false,
+        "edit": false,
+        "patch": false,
+        "mcp-arxiv": false,
+        "mcp-paper-search": false,
+        "mcp-semantic-scholar": false,
+        "mcp-pdf": false,
+        "github-mcp": true,
+        "mcp-google_workspace": false,
+        "mcp-atlassian": false,
+        "mcp-linkedin": false,
+        "mcp-gdp": false,
+        "mcp-slack": true
+      }
+    },
+    "gdp": {
+      "mode": "subagent",
+      "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "description": "Query Grubhub's internal data platform (GDP) for business intelligence: access datasets, run queries, and retrieve insights, read and build redash dashboard/queries.",
+      "prompt": "You are a Grubhub Data Platform (GDP) specialist with expertise in business intelligence, SQL query execution, and Redash dashboard management.\n\nCAPABILITIES:\n- Execute SQL queries against Grubhub's internal data warehouse (Presto/Hive)\n- Access and analyze business datasets across multiple schemas\n- Read and interpret existing Redash dashboards and queries\n- Build and modify Redash visualizations and dashboards\n- Retrieve insights about orders, users, restaurants, and operational metrics\n\nINSTRUCTIONS:\n1. Before querying, identify the correct schema and table (e.g., hive.integrated_events.*)\n2. Include date filters (event_date, order_date) in WHERE clauses for performance\n3. When building queries, use appropriate aggregations and avoid SELECT * for large tables\n4. For Redash operations, specify query IDs or dashboard URLs precisely\n5. Explain query logic when returning results - what each metric represents\n6. If query fails, diagnose whether it's syntax, permissions, or timeout issues\n7. Follow Grubhub naming conventions for tables and columns\n\nOUTPUT FORMAT:\n- For query results: Return formatted tables with clear column headers\n- Include row counts and execution time for context\n- For dashboards: Provide Redash URLs and descriptions of key metrics\n- Explain business context (e.g., \"CVR = Conversion Rate = orders / searches\")\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- Avoid queries that scan full tables without date partitions\n- Respect data access permissions and PII handling policies\n- For destructive operations (DROP, DELETE), require explicit confirmation\n- Query timeout is typically 10 minutes - design accordingly",
+      "tools": {
+        "read": true,
+        "webfetch": true,
+        "bash": false,
+        "write": false,
+        "edit": false,
+        "patch": false,
+        "mcp-arxiv": false,
+        "mcp-paper-search": false,
+        "mcp-semantic-scholar": false,
+        "mcp-pdf": false,
+        "github-mcp": true,
+        "mcp-google_workspace": false,
+        "mcp-atlassian": false,
+        "mcp-linkedin": false,
+        "mcp-gdp": true,
+        "mcp-slack": false
+      }
+    },
+    "build": {
+      "tools": {
+        "*": true,
+        "mcp-*": false
+      }
+    },
+    "plan": {
+      "tools": {
+        "*": true,
+        "mcp-*": false
+      }
+    }
+  }
+}

@@ -110,6 +110,8 @@ export PYENV_VIRTUALENV_DISABLE_PROMPT=1
 # add fzf with CTRl+R
 eval "$(fzf --zsh)"
 eval "$(starship init zsh)"
+# direnv stuff
+eval "$(direnv hook zsh)"
 # java stuff
 export SPARK_HOME="$HOME/spark-3.3.1-bin-hadoop3"
 export PATH="$PATH:$SPARK_HOME/bin:$SPARK_HOME/sbin"
@@ -121,5 +123,30 @@ export PATH="/Users/mferradou/.local/bin:$PATH"
 
 . "$HOME/.atuin/bin/env"
 
+# GitHub CLI
+export GITHUB_TOKEN=$(gh auth token)
+
 eval "$(atuin init zsh)"
 source ~/.local/share/bash-completion/completions/password
+
+#lua rock stuff to remove
+
+export LUA_DIR=/Users/mferradou/Developer/lua
+export PATH="$PATH:${LUA_DIR}/bin"
+export LUA_CPATH="${LUA_DIR}/lib/lua/5.1/?.so"
+export LUA_PATH="${LUA_DIR}/share/lua/5.1/?.lua;;"
+export MANPATH="${LUA_DIR}/share/man:$MANPATH"
+export PATH="$PATH:$HOME/.luarocks/bin"
+eval $(luarocks path --no-bin)
+export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm use default >/dev/null
+
+
+
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/mferradou/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/mferradou/Downloads/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/mferradou/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/mferradou/Downloads/google-cloud-sdk/completion.zsh.inc'; fi

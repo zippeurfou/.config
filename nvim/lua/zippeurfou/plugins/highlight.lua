@@ -12,16 +12,7 @@ return {
     opts = {
       highlight = { enable = true },
       indent = { enable = true, disable = {"python","c", "cpp", "yaml"} },
-      context_commentstring = { enable = true, enable_autocmd = false,config = {
-        -- Languages that have a single comment style
-        typescript = "// %s",
-        css = "/* %s */",
-        scss = "/* %s */",
-        html = "<!-- %s -->",
-        svelte = "<!-- %s -->",
-        vue = "<!-- %s -->",
-        json = "",
-      } },
+      -- context_commentstring removed - now handled by ts-comments.nvim
       ensure_installed = {
         "bash",
         "vimdoc",

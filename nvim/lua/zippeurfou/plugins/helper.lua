@@ -44,7 +44,7 @@ return {
 							return require("which-key.extras").expand.win()
 						end,
 					},
-          -- Use Telescope inseated
+					-- Use Telescope inseated
 					-- {
 					-- 	"<leader>B",
 					-- 	group = "buffers",
@@ -98,12 +98,12 @@ return {
 			require("mini.trailspace").setup({})
 		end,
 	},
-	-- comment with gcc and co
+	-- comment with gcc and co using native nvim + treesitter
 	{
-		"numToStr/Comment.nvim",
-		config = function()
-			require("Comment").setup()
-		end,
+		"folke/ts-comments.nvim",
+		opts = {},
+		event = "VeryLazy",
+		enabled = vim.fn.has("nvim-0.10.0") == 1,
 	},
 	{
 		"kkoomen/vim-doge",
@@ -143,6 +143,13 @@ return {
 			bg_theme = "grape",
 			watermark = "",
 			mac_window_bar = false,
+		},
+	},
+	{
+		"quarto-dev/quarto-nvim",
+		dependencies = {
+			"jmbuhr/otter.nvim",
+			"nvim-treesitter/nvim-treesitter",
 		},
 	},
 }

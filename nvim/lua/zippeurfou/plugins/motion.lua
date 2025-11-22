@@ -27,7 +27,7 @@ return {
   {
     'ggandor/leap.nvim',
     config = function()
-      require('leap').add_default_mappings()
+      -- require('leap').add_default_mappings()
       local leap = require('leap')
       local special_keys = {
         repeat_search = '<tab>',
