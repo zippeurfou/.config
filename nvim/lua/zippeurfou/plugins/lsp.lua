@@ -165,6 +165,9 @@ return {
 
 			-- lspkind for VSCode-style icons
 			{ "onsails/lspkind.nvim" },
+
+			-- devicons for file-type icons in path completions
+			{ "nvim-tree/nvim-web-devicons" },
 		},
 
 		opts = {
@@ -174,8 +177,25 @@ return {
 				-- Keybindings
 				["<C-Space>"] = { "show", "hide" },
 				["<C-e>"] = { "hide" },
-				["<CR>"] = { "accept", "fallback" },
-
+				-- ["<CR>"] = { "accept", "fallback" },
+				-- Allow to keep showing completion menu when accepting a path ending with /
+				["<CR>"] = {
+					function(cmp)
+						local item = cmp.get_selected_item()
+						-- Only auto-show if it's from path source AND ends with /
+						if item and item.source_name:lower() == "path" and item.label:match("/$") then
+							cmp.accept()
+							-- Small delay to let accept complete before showing again
+							vim.defer_fn(function()
+								cmp.show()
+							end, 50) -- 50ms should be safe
+							return true
+						else
+							return cmp.accept()
+						end
+					end,
+					"fallback",
+				},
 				["<C-p>"] = { "select_prev", "fallback" },
 				["<C-n>"] = { "select_next", "fallback" },
 
@@ -242,15 +262,31 @@ return {
 							kind_icon = {
 								ellipsis = false,
 								text = function(ctx)
-									-- Use lspkind icons
-									local lspkind = require("lspkind")
-									local kind_name = ctx.kind
-									local icon = lspkind.presets.default[kind_name] or ctx.kind_icon
+									local icon = ctx.kind_icon
+									-- Use devicons for Path source, lspkind for everything else
+									if ctx.source_name and ctx.source_name:lower() == "path" then
+										local dev_icon, _ = require("nvim-web-devicons").get_icon(ctx.label)
+										if dev_icon then
+											icon = dev_icon
+										end
+									else
+										-- Use lspkind icons for LSP/Snippet/Buffer
+										icon = require("lspkind").symbolic(ctx.kind, {
+											mode = "symbol",
+										})
+									end
 									return icon .. ctx.icon_gap
 								end,
-								-- Automatic highlight from colorscheme
+								-- Use devicon highlights for Path, colorscheme highlights for others
 								highlight = function(ctx)
-									return { { group = ctx.kind_hl, priority = 20000 } }
+									local hl = ctx.kind_hl
+									if ctx.source_name and ctx.source_name:lower() == "path" then
+										local _, dev_hl = require("nvim-web-devicons").get_icon(ctx.label)
+										if dev_hl then
+											hl = dev_hl
+										end
+									end
+									return hl
 								end,
 							},
 							kind = {
@@ -342,6 +378,50 @@ return {
 			-- Cmdline completion
 			cmdline = {
 				enabled = true,
+
+				-- Completion behavior for cmdline
+				completion = {
+					trigger = {
+						show_on_keyword = false, -- Don't auto-show while typing
+					},
+					list = {
+						selection = {
+							preselect = false, -- Don't auto-select first item
+							auto_insert = false, -- Don't auto-insert while navigating
+						},
+					},
+					menu = {
+						auto_show = false, -- Don't auto-show menu
+					},
+				},
+
+				-- Keymap for cmdline (different from file editing)
+				keymap = {
+					preset = "none",
+					["<Tab>"] = { "show", "select_next", "fallback" },
+					["<S-Tab>"] = { "select_prev", "fallback" },
+					-- ["<CR>"] = { "accept", "fallback" }, -- Accept but don't execute
+					-- Allow to keep showing when it finish with /
+					["<CR>"] = {
+						function(cmp)
+							local item = cmp.get_selected_item()
+							if item and item.label and item.label:match("/$") then
+								cmp.accept()
+								-- Small delay to let accept complete before showing again
+								vim.defer_fn(function()
+									cmp.show()
+								end, 50) -- 50ms should be safe
+								return true
+							else
+								return cmp.accept()
+							end
+						end,
+						"fallback",
+					},
+					["<C-e>"] = { "hide", "fallback" },
+				},
+
+				-- Sources for different cmdline modes
 				sources = function()
 					local type = vim.fn.getcmdtype()
 					if type == "/" or type == "?" then

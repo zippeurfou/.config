@@ -142,9 +142,9 @@ return {
 					mappings = {
 						n = {
 							["<S-D>"] = "delete_buffer",
-						}
-					}
-				}
+						},
+					},
+				},
 			},
 		},
 	},
@@ -224,5 +224,27 @@ return {
 	{
 		"stevearc/quicker.nvim",
 		ft = "qf",
+		opts = {},
+		keys = {
+			{
+				">",
+				function()
+          -- Temporarily modify 'shortmess' to avoid getting messages in the command line
+					local original_shortmess = vim.o.shortmess
+					vim.opt.shortmess:append("F")
+					require("quicker").expand({ before = 2, after = 2, add_to_existing = true })
+          -- Restore original 'shortmess' value
+					vim.o.shortmess = original_shortmess
+				end,
+				desc = "Expand quickfix context",
+			},
+			{
+				"<",
+				function()
+					require("quicker").collapse()
+				end,
+				desc = "Collapse quickfix context",
+			},
+		},
 	},
 }
