@@ -1,9 +1,6 @@
 return {
 	{
 		"nvim-neotest/neotest-python",
-		dependencies = {
-			{ "nvim-neotest/neotest" },
-		},
 	},
 	{
 		"nvim-neotest/neotest",
@@ -128,9 +125,9 @@ return {
 			{ "mfussenegger/nvim-dap" },
 		},
 	},
-	{ "rcarriga/cmp-dap" },
+	-- cmp-dap removed - using blink.cmp's built-in DAP support instead
 	{
-		"zippeurfou/nvim-dap-virtual-text",
+		"theHamsta/nvim-dap-virtual-text",
 		config = function()
 			require("nvim-dap-virtual-text").setup({
 				enabled = true, -- enable this plugin (the default)
@@ -150,7 +147,6 @@ return {
 				-- e.g. 80 to position at column 80, see `:h nvim_buf_set_extmark()`
 			})
 		end,
-		branch = "nvim-pairs-error-fix",
 	},
 	dependencies = {
 		{ "mfussenegger/nvim-dap" },

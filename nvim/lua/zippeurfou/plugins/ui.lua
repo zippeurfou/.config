@@ -324,9 +324,41 @@ return {
 	{
 		"github/copilot.vim",
 		lazy = false,
-		init = function()
+		init = function() end,
+	},
+
+	-- Alternative: copilot.lua for testing (currently commented out)
+	-- To test copilot.lua instead of copilot.vim:
+	-- 1. Comment out copilot.vim above
+	-- 2. Uncomment this copilot.lua block below
+	-- 3. Restart Neovim
+	--[[
+	{
+		"zbirenbaum/copilot.lua",
+		cmd = "Copilot",
+		event = "InsertEnter",
+		config = function()
+			require("copilot").setup({
+				suggestion = {
+					enabled = true,  -- Enable inline ghost text
+					auto_trigger = true,
+					keymap = {
+						accept = "<C-j>",  -- Ctrl-J to accept
+						next = "<M-]>",
+						prev = "<M-[>",
+						dismiss = "<C-]>",
+					},
+				},
+				panel = { enabled = false },
+			})
+			-- Set ghost text color (override default)
+			vim.schedule(function()
+				vim.api.nvim_set_hl(0, 'CopilotSuggestion', { fg = '#767676', italic = true })
+			end)
 		end,
 	},
+	]]
+
 	{
 		"nvim-lualine/lualine.nvim",
 		event = "VeryLazy",

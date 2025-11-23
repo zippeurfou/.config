@@ -1,5 +1,4 @@
 local o = vim.opt
-o.gdefault = true -- Add the g flag to search/replace by default
 o.modelines = 8   -- Number of lines to keep for set command
 o.number = true   -- Show line number
 o.cursorline = true -- Highlight current line
@@ -45,7 +44,7 @@ o.splitright = true    -- vertical split right by default
 o.foldmethod = 'indent'
 o.foldlevel = 99
 vim.g.python3_host_prog = vim.fn.getenv 'PYENV_ROOT' .. '/versions/neovim3/bin/python'
-vim.g.pyton_host_prog = vim.fn.getenv 'PYENV_ROOT' .. '/versions/neovim2/bin/python'
+vim.g.python_host_prog = vim.fn.getenv 'PYENV_ROOT' .. '/versions/neovim2/bin/python'
 -- make zsh files recognized as sh for bash-ls & treesitter
 vim.filetype.add {
   extension = {

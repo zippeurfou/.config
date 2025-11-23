@@ -2,7 +2,7 @@
 -- TODO: Figure out how to add the one that are part of plugins
 
 -- Change mapleader
-vim.g.mapleader = ","
+-- vim.g.mapleader = ","
 vim.g.wordmotion_prefix = "<leader>"
 local function map(mode, keys, action, description)
 	local options = { noremap = true, silent = true, desc = description }
