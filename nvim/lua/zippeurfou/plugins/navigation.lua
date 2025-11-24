@@ -47,7 +47,7 @@ return {
 			})
 		end,
 	},
-	{ "qpkorr/vim-bufkill" },
+	-- { "qpkorr/vim-bufkill" },
 	{
 		"nvim-telescope/telescope.nvim",
 		cmd = "Telescope",

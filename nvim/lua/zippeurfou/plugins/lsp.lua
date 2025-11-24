@@ -381,9 +381,6 @@ return {
 
 				-- Completion behavior for cmdline
 				completion = {
-					trigger = {
-						show_on_keyword = false, -- Don't auto-show while typing
-					},
 					list = {
 						selection = {
 							preselect = false, -- Don't auto-select first item
