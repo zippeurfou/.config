@@ -224,27 +224,26 @@ return {
 	{
 		"stevearc/quicker.nvim",
 		ft = "qf",
-		opts = {},
-		keys = {
-			{
-				">",
-				function()
-          -- Temporarily modify 'shortmess' to avoid getting messages in the command line
-					local original_shortmess = vim.o.shortmess
-					vim.opt.shortmess:append("F")
-					require("quicker").expand({ before = 2, after = 2, add_to_existing = true })
-          -- Restore original 'shortmess' value
-					vim.o.shortmess = original_shortmess
+		config = function()
+			require("quicker").setup({})
+
+			-- Set buffer-local keymaps only for quickfix windows
+			vim.api.nvim_create_autocmd("FileType", {
+				pattern = "qf",
+				callback = function()
+					local opts = { buffer = true, silent = true }
+					vim.keymap.set("n", ">", function()
+						local original_shortmess = vim.o.shortmess
+						vim.opt.shortmess:append("F")
+						require("quicker").expand({ before = 2, after = 2, add_to_existing = true })
+						vim.o.shortmess = original_shortmess
+					end, vim.tbl_extend("force", opts, { desc = "Expand quickfix context" }))
+
+					vim.keymap.set("n", "<", function()
+						require("quicker").collapse()
+					end, vim.tbl_extend("force", opts, { desc = "Collapse quickfix context" }))
 				end,
-				desc = "Expand quickfix context",
-			},
-			{
-				"<",
-				function()
-					require("quicker").collapse()
-				end,
-				desc = "Collapse quickfix context",
-			},
-		},
+			})
+		end,
 	},
 }
