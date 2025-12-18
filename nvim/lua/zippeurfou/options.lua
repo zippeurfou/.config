@@ -1,4 +1,5 @@
 local o = vim.opt
+o.undofile = true -- Persist undo history across sessions
 o.modelines = 8   -- Number of lines to keep for set command
 o.number = true   -- Show line number
 o.cursorline = true -- Highlight current line

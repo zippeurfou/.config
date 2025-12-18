@@ -177,6 +177,50 @@ return {
 		lazy = true,
 	},
 	{
+		"debugloop/telescope-undo.nvim",
+		dependencies = { "nvim-telescope/telescope.nvim" },
+		keys = {
+			{ "<leader>U", "<cmd>Telescope undo<cr>", desc = "Undo Tree" },
+		},
+		config = function()
+			require("telescope").setup({
+				extensions = {
+					undo = {
+						use_delta = true,
+						side_by_side = true,
+						layout_strategy = "vertical",
+						layout_config = {
+							preview_height = 0.8,
+						},
+						mappings = {
+							i = {
+								["<cr>"] = require("telescope-undo.actions").yank_additions,
+								["<S-cr>"] = require("telescope-undo.actions").yank_deletions,
+								["<C-cr>"] = require("telescope-undo.actions").restore,
+							},
+							n = {
+								["y"] = require("telescope-undo.actions").yank_additions,
+								["Y"] = require("telescope-undo.actions").yank_deletions,
+								["u"] = require("telescope-undo.actions").restore,
+							},
+						},
+					},
+				},
+			})
+			require("telescope").load_extension("undo")
+		end,
+	},
+	{
+		"kevinhwang91/nvim-fundo",
+		dependencies = { "kevinhwang91/promise-async" },
+		build = function()
+			require("fundo").install()
+		end,
+		config = function()
+			require("fundo").setup()
+		end,
+	},
+	{
 		"hkupty/iron.nvim",
 		config = function()
 			local iron = require("iron.core")

@@ -535,7 +535,7 @@ return {
 	{
 		"benomahony/uv.nvim",
 		config = function()
-			require("uv").setup({ keymaps = { prefix = "<leader>U" } })
+			require("uv").setup({ keymaps = { prefix = "<leader>V" } })
 		end,
 	},
 	{
