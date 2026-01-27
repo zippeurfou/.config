@@ -4,10 +4,13 @@
     "AGENTS.md",
     "CONTRIBUTING.md",
     "docs/guidelines.md",
+    "docs/AGENTS.md",
     ".cursor/rules/*.md"
   ],
-
-  "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "model": "anthropic/claude-opus-4-5",
+  "plugin": [
+    "oh-my-opencode",
+  ],
   "small_model": "anthropic/claude-3-5-haiku-20241022",
   "share": "disabled",
   "lsp": {
@@ -15,9 +18,20 @@
       "disabled": true
     },
     "python": {
-      "command": ["uvx", "ty", "lsp"],
-      "rootPatterns": [".git", "pyproject.toml", "setup.py"],
-      "extensions": [".py", ".pyi"]
+      "command": [
+        "uvx",
+        "ty",
+        "lsp"
+      ],
+      "rootPatterns": [
+        ".git",
+        "pyproject.toml",
+        "setup.py"
+      ],
+      "extensions": [
+        ".py",
+        ".pyi"
+      ]
     }
   },
   "formatter": {
@@ -28,14 +42,25 @@
       "disabled": true
     },
     "python": {
-      "command": ["uvx", "ruff", "format", "$FILE"],
-      "extensions": [".py", ".pyi"]
+      "command": [
+        "uvx",
+        "ruff",
+        "format",
+        "$FILE"
+      ],
+      "extensions": [
+        ".py",
+        ".pyi"
+      ]
     }
   },
   "mcp": {
     "github-mcp": {
       "type": "local",
-      "command": ["sh", "/Users/mferradou/.config/opencode/mcp/github.sh"],
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/github.sh"
+      ],
       "enabled": true,
       "timeout": 15000
     },
@@ -50,7 +75,10 @@
     },
     "mcp-atlassian": {
       "type": "local",
-      "command": ["sh", "/Users/mferradou/.config/opencode/mcp/atlassian.sh"],
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/atlassian.sh"
+      ],
       "enabled": true,
       "timeout": 30000
     },
@@ -92,13 +120,28 @@
     },
     "playwright-mcp": {
       "type": "local",
-      "command": ["sh", "/Users/mferradou/.config/opencode/mcp/playwritght.sh"],
-      "enabled": false,
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/playwright.sh"
+      ],
+      "enabled": true,
+      "timeout": 60000
+    },
+    "railway-mcp": {
+      "type": "local",
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/railway.sh"
+      ],
+      "enabled": true,
       "timeout": 30000
     },
     "mcp-slack": {
       "type": "local",
-      "command": ["sh", "/Users/mferradou/.config/opencode/mcp/mcp-slack.sh"],
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/mcp-slack.sh"
+      ],
       "enabled": true,
       "timeout": 15000
     },
@@ -142,13 +185,43 @@
       ],
       "enabled": false,
       "timeout": 15000
+    },
+    "peekaboo-mcp": {
+      "type": "local",
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/peekaboo.sh"
+      ],
+      "enabled": true,
+      "timeout": 60000
     }
   },
   "agent": {
+    "code-reviewer": {
+      "description": "Use after completing any task, feature, or before merge to review code quality, plan alignment, and production readiness. Invoke frequently to catch issues early - after each task, before commits/PRs, or when stuck debugging.",
+      "mode": "subagent",
+      "temperature": 0.1,
+      "prompt": "{file:./agent/code-reviewer.md}",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "bash": {
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git status": "allow",
+          "*": "deny"
+        },
+        "edit": "deny",
+        "write": "deny",
+        "webfetch": "deny",
+        "mcp-*": "deny"
+      }
+    },
     "papers": {
       "description": "Subagent for academic research: search, retrieve, and summarize papers.",
       "mode": "subagent",
-      "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
       "prompt": "You are an academic research specialist focused on finding, analyzing, and synthesizing scholarly literature.\n\nCAPABILITIES:\n- Search across arXiv, Semantic Scholar, and other academic databases\n- Download and read full-text papers (PDF format)\n- Trace citation networks to find foundational and related work\n- Identify GitHub repositories associated with papers\n- Prioritize recent industry research and state-of-the-art methods\n\nINSTRUCTIONS:\n1. When searching for papers, use multiple sources (arXiv, Semantic Scholar) to ensure comprehensive coverage\n2. Prioritize papers from the last 3 years unless specifically asked for historical context\n3. When encountering unfamiliar concepts, follow citation chains to find foundational papers\n4. Always look for associated code repositories (GitHub) when analyzing implementation-focused papers\n5. Deduplicate results across different databases using DOI, arXiv ID, or title matching\n6. Provide citation-ready references with: authors, title, venue, year, and identifier (DOI/arXiv ID)\n\nOUTPUT FORMAT:\n- Summarize key findings concisely\n- Include paper metadata for proper attribution\n- Highlight methodological approaches and results\n- Link to code repositories when available\n- Note any limitations or gaps in the literature\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- If a paper is unavailable, clearly state this and suggest alternatives\n- Focus on peer-reviewed or reputable preprint sources",
       "permission": {
         "read": "allow",
@@ -172,7 +245,6 @@
     "google": {
       "description": "Handles Google Workspace automation and insight: Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms, Google Search. Use it for anything related to Google from reading a sheet / doc / Drive to Search on the web.",
       "mode": "subagent",
-      "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
       "prompt": "You are a Google Workspace automation specialist with access to Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms, Tasks, Chat, and Google Custom Search.\n\nCAPABILITIES:\n- Read, create, edit, and manage emails in Gmail\n- Schedule, update, and query calendar events\n- Access, organize, and modify files in Google Drive\n- Create and edit Google Docs, Sheets, and Slides\n- Build and analyze Forms responses\n- Manage Tasks and send Chat messages\n- Perform web searches using Google Custom Search\n\nINSTRUCTIONS:\n1. Always verify user authentication before performing any operation\n2. For search requests, use Google Custom Search for web queries\n3. When accessing Drive files, use file IDs or precise search queries to locate documents\n4. For Sheets operations, specify ranges clearly (e.g., \"A1:D10\")\n5. When sending emails, confirm recipients and include clear subject lines\n6. Handle calendar operations with timezone awareness\n7. Return structured data (file URLs, event IDs, message links) for user reference\n\nOUTPUT FORMAT:\n- Provide direct links to created/modified resources\n- Summarize actions taken (e.g., \"Created document [Title] at [URL]\")\n- For search results, return top 5-10 most relevant items\n- Include metadata (last modified, owner, permissions) when retrieving files\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- Respect file permissions and sharing settings\n- If authentication fails, clearly explain the error\n- For bulk operations, confirm with specific counts before proceeding",
       "permission": {
         "read": "allow",
@@ -195,7 +267,6 @@
     },
     "linkedin": {
       "mode": "subagent",
-      "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
       "description": "Retrieve LinkedIn profiles, company pages, and job postings; allows extracting professional data for people and organizations.",
       "prompt": "You are a professional networking data specialist with access to LinkedIn profiles, company pages, and job postings.\n\nCAPABILITIES:\n- Retrieve detailed LinkedIn profiles for individuals\n- Access company information and organizational data\n- Search for and analyze job postings\n- Extract professional credentials, work history, and education\n\nINSTRUCTIONS:\n1. When searching for profiles, use Google Custom Search to find LinkedIn profile URLs first\n2. Extract profile IDs from LinkedIn URLs before making API calls\n3. For company research, gather both basic info (size, industry) and recent activity\n4. When analyzing job postings, include requirements, responsibilities, and application details\n5. Cross-reference multiple sources when data seems incomplete\n6. Respect privacy - only access publicly available information\n\nOUTPUT FORMAT:\n- Structure profile data clearly: Name, Current Role, Company, Location, Key Skills\n- For companies: Name, Industry, Size, Headquarters, Recent Updates\n- For jobs: Title, Company, Location, Type (Full-time/Contract), Key Requirements\n- Include LinkedIn URLs for direct access\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- Only access publicly available LinkedIn data\n- If profile access fails, explain whether it's due to privacy settings or other errors\n- Do not attempt to scrape or circumvent LinkedIn's API limitations",
       "permission": {
@@ -218,7 +289,6 @@
     },
     "atlassian": {
       "mode": "subagent",
-      "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
       "description": "Interact with Atlassian Cloud products (Jira, Confluence, etc): create, update, search, and manage issues, projects, spaces, and documentation.",
       "prompt": "You are an Atlassian Cloud specialist managing Jira issues, Confluence documentation, and related project management tools.\n\nCAPABILITIES:\n- Create, update, search, and manage Jira issues\n- Query project boards, sprints, and backlogs\n- Access and modify Confluence pages and spaces\n- Track issue relationships (blockers, dependencies, epics)\n- Manage issue fields, labels, and custom attributes\n\nINSTRUCTIONS:\n1. When searching for issues, use JQL (Jira Query Language) for precise filtering\n2. Include relevant context when creating issues: description, acceptance criteria, labels\n3. For Confluence operations, specify the space key and page title clearly\n4. When updating issues, preserve existing data unless explicitly asked to change it\n5. Return issue keys (e.g., PROJ-123) and URLs for easy navigation\n6. Handle project-specific workflows and custom fields appropriately\n\nOUTPUT FORMAT:\n- For issue searches: Return issue key, summary, status, assignee, priority\n- For created/updated issues: Provide issue key and direct URL\n- For Confluence pages: Return page title, space, and URL\n- Include relevant metadata (created date, last updated, reporter)\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- Respect project permissions and access controls\n- If field validation fails, explain which fields are required\n- For bulk operations, confirm scope before proceeding\n- Do not delete issues or pages without explicit confirmation",
       "permission": {
@@ -242,7 +312,6 @@
     },
     "slack": {
       "mode": "subagent",
-      "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
       "description": "Search, fetch, read, and write messages in Slack channels and direct messages. Use it to interact with Slack for team communication.",
       "prompt": "You are a Slack integration specialist focused on team communication, message management, and channel coordination.\n\nCAPABILITIES:\n- Search messages across channels and direct messages\n- Read conversation history and thread replies\n- Post messages to channels and DMs\n- Retrieve channel information and member lists\n- Access file attachments and shared links\n\nINSTRUCTIONS:\n1. When searching messages, use specific keywords and date ranges for better results\n2. For posting messages, format using Slack markdown (bold, italics, code blocks, lists)\n3. Respect channel purposes - verify you're posting to the appropriate channel\n4. When reading threads, include parent message context\n5. For time-sensitive searches, prioritize recent messages (last 24 hours, last week)\n6. Return message permalinks for easy reference\n\nOUTPUT FORMAT:\n- For searches: Return message text, sender, channel, timestamp, and permalink\n- For posted messages: Confirm with channel name and message preview\n- For channel info: Name, purpose, member count, and privacy level\n- Include thread context when relevant (e.g., \"Reply to [parent message]\")\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- Respect channel permissions and privacy settings\n- Do not post to channels you don't have access to\n- For bulk message operations, confirm scope before proceeding\n- Do not delete messages without explicit confirmation",
       "permission": {
@@ -266,7 +335,6 @@
     },
     "gdp": {
       "mode": "subagent",
-      "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
       "description": "Query Grubhub's internal data platform (GDP) for business intelligence: access datasets, run queries, and retrieve insights, read and build redash dashboard/queries.",
       "prompt": "You are a Grubhub Data Platform (GDP) specialist with expertise in business intelligence, SQL query execution, and Redash dashboard management.\n\nCAPABILITIES:\n- Execute SQL queries against Grubhub's internal data warehouse (Presto/Hive)\n- Access and analyze business datasets across multiple schemas\n- Read and interpret existing Redash dashboards and queries\n- Build and modify Redash visualizations and dashboards\n- Retrieve insights about orders, users, restaurants, and operational metrics\n\nINSTRUCTIONS:\n1. Before querying, identify the correct schema and table (e.g., hive.integrated_events.*)\n2. Include date filters (event_date, order_date) in WHERE clauses for performance\n3. When building queries, use appropriate aggregations and avoid SELECT * for large tables\n4. For Redash operations, specify query IDs or dashboard URLs precisely\n5. Explain query logic when returning results - what each metric represents\n6. If query fails, diagnose whether it's syntax, permissions, or timeout issues\n7. Follow Grubhub naming conventions for tables and columns\n\nOUTPUT FORMAT:\n- For query results: Return formatted tables with clear column headers\n- Include row counts and execution time for context\n- For dashboards: Provide Redash URLs and descriptions of key metrics\n- Explain business context (e.g., \"CVR = Conversion Rate = orders / searches\")\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- Avoid queries that scan full tables without date partitions\n- Respect data access permissions and PII handling policies\n- For destructive operations (DROP, DELETE), require explicit confirmation\n- Query timeout is typically 10 minutes - design accordingly",
       "permission": {
@@ -286,6 +354,54 @@
         "mcp-linkedin_*": "deny",
         "mcp-gdp_*": "allow",
         "mcp-slack_*": "deny"
+      }
+    },
+    "webapp": {
+      "description": "Webapp testing and debugging: E2E tests, browser automation, console/network inspection. Connects to your Chrome with existing sessions.",
+      "mode": "subagent",
+      "temperature": 0.2,
+      "prompt": "{file:./agent/webapp.md}",
+      "permission": {
+        "read": "allow",
+        "webfetch": "allow",
+        "bash": "deny",
+        "write": "deny",
+        "edit": "deny",
+        "playwright-mcp_*": "allow",
+        "github-mcp_*": "allow",
+        "mcp-*": "deny"
+      }
+    },
+    "railway": {
+      "description": "Railway deployment management: deploy services, manage environments, view logs, configure domains.",
+      "mode": "subagent",
+      "temperature": 0.2,
+      "prompt": "{file:./agent/railway.md}",
+      "permission": {
+        "read": "allow",
+        "webfetch": "allow",
+        "bash": "deny",
+        "write": "deny",
+        "edit": "deny",
+        "railway-mcp_*": "allow",
+        "github-mcp_*": "allow",
+        "mcp-*": "deny"
+      }
+    },
+    "peekaboo": {
+      "description": "macOS screen capture and GUI automation: take screenshots, click buttons, type text, interact with menus, manage windows, automate workflows with natural language.",
+      "mode": "subagent",
+      "temperature": 0.2,
+      "prompt": "{file:./agent/peekaboo.md}",
+      "permission": {
+        "read": "allow",
+        "webfetch": "allow",
+        "bash": "deny",
+        "write": "deny",
+        "edit": "deny",
+        "peekaboo-mcp_*": "allow",
+        "github-mcp_*": "allow",
+        "mcp-*": "deny"
       }
     },
     "build": {

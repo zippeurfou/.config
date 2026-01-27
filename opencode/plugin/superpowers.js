@@ -1,0 +1,1 @@
+/Users/mferradou/.config/opencode/superpowers/.opencode/plugin/superpowers.js

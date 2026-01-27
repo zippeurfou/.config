@@ -1,5 +1,7 @@
 repos:
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.19.3
+    rev: v8.21.2
     hooks:
       - id: gitleaks
+        language: system
+        entry: gitleaks git --pre-commit --redact --staged

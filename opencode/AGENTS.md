@@ -32,6 +32,34 @@
 5. **Veracity Check**  
    - Before writing anything into memory, always confirm with me that the retrieved information is accurate.
 
+6. **Mandatory Code Review**
+   - **Invoke `@code-reviewer` frequently** - it is designed to catch issues early
+   - After completing ANY task, not just "major" ones
+   - Before creating commits or PRs
+   - When stuck debugging (fresh perspective helps)
+   - Before claiming work is "done" or "complete"
+   
+   **Invocation pattern:**
+   > "Let me have the code-reviewer check this implementation before proceeding"
+   
+   **Never skip because:**
+   - "It's a small change" - small changes cause big bugs
+   - "I'm confident it works" - confidence ≠ evidence
+   - "Tests pass" - tests don't catch all issues (architecture, security, readability)
+   - "It's just refactoring" - refactoring often introduces subtle bugs
+   
+   **Code-reviewer provides:**
+   - Severity-classified issues (Critical/Important/Minor)
+   - Specific file:line references
+   - Clear "Ready to merge?" verdict
+   - Actionable fix suggestions
+   
+   **Act on feedback:**
+   - Fix Critical issues immediately
+   - Fix Important issues before proceeding
+   - Note Minor issues for later
+   - Push back with reasoning if you disagree
+
 # Programming and Code-Related Tasks
 
 ## Python
