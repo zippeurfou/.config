@@ -1,0 +1,33 @@
+{
+  "Profiles": [
+    {
+      "Name": "tmux (CMD layer)",
+      "Guid": "tmux-cmd-layer",
+      "Keyboard Map": {
+        "0x74-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x63", "Label": "Cmd+T  new window" },
+        "0x77-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x71", "Label": "Cmd+W  kill pane" },
+        "0x64-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x76", "Label": "Cmd+D  split side" },
+        "0x64-0x120000": { "Version": 1, "Action": 11, "Text": "0x02 0x73", "Label": "Cmd+Shift+D  split stack" },
+        "0x31-0x40000": { "Version": 1, "Action": 11, "Text": "0x02 0x31", "Label": "Ctrl+1  window 1" },
+        "0x32-0x40000": { "Version": 1, "Action": 11, "Text": "0x02 0x32", "Label": "Ctrl+2  window 2" },
+        "0x33-0x40000": { "Version": 1, "Action": 11, "Text": "0x02 0x33", "Label": "Ctrl+3  window 3" },
+        "0x34-0x40000": { "Version": 1, "Action": 11, "Text": "0x02 0x34", "Label": "Ctrl+4  window 4" },
+        "0x35-0x40000": { "Version": 1, "Action": 11, "Text": "0x02 0x35", "Label": "Ctrl+5  window 5" },
+        "0x36-0x40000": { "Version": 1, "Action": 11, "Text": "0x02 0x36", "Label": "Ctrl+6  window 6" },
+        "0x37-0x40000": { "Version": 1, "Action": 11, "Text": "0x02 0x37", "Label": "Ctrl+7  window 7" },
+        "0x38-0x40000": { "Version": 1, "Action": 11, "Text": "0x02 0x38", "Label": "Ctrl+8  window 8" },
+        "0x39-0x40000": { "Version": 1, "Action": 11, "Text": "0x02 0x39", "Label": "Ctrl+9  window 9" },
+        "0x5b-0x120000": { "Version": 1, "Action": 11, "Text": "0x02 0x62", "Label": "Cmd+Shift+[  prev window" },
+        "0x5d-0x120000": { "Version": 1, "Action": 11, "Text": "0x02 0x6e", "Label": "Cmd+Shift+]  next window" },
+        "0x69-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x6b", "Label": "Cmd+I  pane up" },
+        "0x6a-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x68", "Label": "Cmd+J  pane left" },
+        "0x6b-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x6a", "Label": "Cmd+K  pane down" },
+        "0x6c-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x6c", "Label": "Cmd+L  pane right" },
+        "0x0d-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x6d", "Label": "Cmd+Return  zoom pane" },
+        "0x70-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x66", "Label": "Cmd+P  project finder" },
+        "0x6f-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x09", "Label": "Cmd+O  session finder" },
+        "0x2f-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x70", "Label": "Cmd+/  floating scratch" }
+      }
+    }
+  ]
+}

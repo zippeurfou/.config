@@ -1,0 +1,6 @@
+# tmux sessionizer session-name aliases
+# Format (one per line):  <exact ~/Projects folder name>=<short session name>
+# Lines starting with # are ignored. Folders not listed here are auto-cleaned
+# (lowercase, separators -> '-', trailing "gdp" stripped).
+
+homepage_merchant_ranker_gdp=merch-ranker
