@@ -3,8 +3,6 @@
 zmodload zsh/complist
 source /opt/homebrew/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh
 source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-autoload -U compinit
-compinit
 source "${HOME}/.iterm2_shell_integration.zsh"
 source /opt/homebrew/etc/profile.d/z.sh
 source /Users/mferradou/.config/zsh/zsh-z/zsh-z.plugin.zsh
@@ -13,14 +11,13 @@ source /Users/mferradou/.config/zsh/.zprivate # private stuff to not share publi
 
 if type brew &>/dev/null; then
     FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
-    autoload -Uz compinit
-    compinit
 fi
+# Single compinit, cached: -C skips the slow security audit on every start.
+# (Delete ~/.zcompdump occasionally if completions for a new tool don't show up.)
+autoload -Uz compinit
+compinit -C
 
-# node js stuff
-export NVM_DIR="${HOME}/.nvm"
-[ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
-[ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
+# node js stuff -- nvm is now lazy-loaded further down (see "lazy nvm" block)
 HISTSIZE=5000
 HISTFILE=~/.zsh_history
 SAVEHIST=5000
@@ -138,11 +135,49 @@ export LUA_PATH="${LUA_DIR}/share/lua/5.1/?.lua;;"
 export MANPATH="${LUA_DIR}/share/man:$MANPATH"
 export PATH="$PATH:$HOME/.luarocks/bin"
 eval $(luarocks path --no-bin)
+# --- lazy nvm -------------------------------------------------------------
+# NVM's nvm.sh + `nvm use` was ~70% of shell startup (~2.7s). Instead we put
+# the current default node bin on PATH instantly, and only source the full
+# nvm script the first time you actually call nvm/node/npm/npx/corepack.
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-nvm use default >/dev/null
 
+# Put the newest installed node version's bin on PATH right away (no nvm
+# sourcing cost). We just pick the highest installed version under NVM_DIR so
+# this is robust whatever the `default` alias points at.
+() {
+  setopt local_options null_glob no_nomatch
+  local -a _nvm_bins
+  _nvm_bins=( "$NVM_DIR"/versions/node/*/bin(N) )
+  if (( ${#_nvm_bins} )); then
+    # sort by version, take the newest
+    _nvm_bins=( ${(On)_nvm_bins} )
+    export PATH="${_nvm_bins[1]}:$PATH"
+  fi
+}
 
+_load_nvm() {
+  unset -f nvm node npm npx corepack 2>/dev/null
+  # Homebrew installs nvm.sh here (NOT at $NVM_DIR/nvm.sh, which is just a symlink
+  # target it creates lazily). Fall back to $NVM_DIR/nvm.sh for non-brew setups.
+  if [ -s "/opt/homebrew/opt/nvm/nvm.sh" ]; then
+    \. "/opt/homebrew/opt/nvm/nvm.sh"
+  elif [ -s "$NVM_DIR/nvm.sh" ]; then
+    \. "$NVM_DIR/nvm.sh"
+  fi
+  [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"
+}
+# `nvm` becomes a shell function once nvm.sh is sourced, so call it by name.
+nvm() { _load_nvm; nvm "$@"; }
+# node/npm/npx/corepack are real binaries already on PATH; the stub only exists
+# so that the first invocation also pulls in nvm's function/completions.
+for _cmd in node npm npx corepack; do
+  eval "$_cmd() { _load_nvm; command $_cmd \"\$@\"; }"
+done
+unset _cmd
+# --- end lazy nvm ---------------------------------------------------------
+
+# opencode search
+export OPENCODE_ENABLE_EXA=1
 
 
 # The next line updates PATH for the Google Cloud SDK.
@@ -150,3 +185,10 @@ if [ -f '/Users/mferradou/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/U
 
 # The next line enables shell command completion for gcloud.
 if [ -f '/Users/mferradou/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/mferradou/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
+
+# bun completions
+[ -s "/Users/mferradou/.bun/_bun" ] && source "/Users/mferradou/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
