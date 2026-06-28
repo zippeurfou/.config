@@ -1,7 +1,7 @@
 # tmux integration: auto-attach on launch.
 # Project finder is C-b f (portable) / Cmd+P (local) — no shell keybinding, by design.
 # (Ctrl+F / Ctrl+G stay your file / grep finders from 30-keybindings.zsh.)
-# See ~/.config/tmux/DESIGN.md.
+# See ~/.config/tmux/README.md.
 
 # Auto-attach to a 'main' tmux session in interactive, local iTerm2 shells.
 # Skipped when already inside tmux (so panes don't recurse).

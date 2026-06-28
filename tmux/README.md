@@ -1,8 +1,30 @@
-# tmux setup — design & cheatsheet
+# tmux configuration
 
 A tmux config that **feels like nvim** (same window verbs), stays **invisible to nvim**
 (zero keybinding conflicts), looks like **tokyonight-night**, and **persists sessions**
 (detach / reattach / survive a terminal quit / reattach over SSH).
+
+## Setup (fresh machine)
+Configs load from `~/.config/tmux/` (XDG) automatically — no `~/.tmux.conf` needed.
+
+1. **Prerequisites** (Homebrew): `brew install tmux fzf zoxide bash jq coreutils` + a **Nerd Font**
+   (for the status-bar glyphs). Optional extra widgets: `brew install gawk gnu-sed`.
+2. **Plugin manager (TPM):**
+   ```sh
+   git clone https://github.com/tmux-plugins/tpm ~/.config/tmux/plugins/tpm
+   ```
+3. **Install plugins:** start `tmux`, press `prefix I` (or run
+   `~/.config/tmux/plugins/tpm/bin/install_plugins`).
+4. **iTerm2 CMD layer:** symlink the dynamic profile, then select it:
+   ```sh
+   mkdir -p ~/Library/Application\ Support/iTerm2/DynamicProfiles
+   ln -sf ~/.config/tmux/iterm2-cmd-layer.json \
+     ~/Library/Application\ Support/iTerm2/DynamicProfiles/tmux-cmd-layer.json
+   ```
+   iTerm2 → Settings → Profiles → **“tmux (CMD layer)”** → *Other Actions ▸ Set as Default* → reopen iTerm2.
+5. **Shell auto-attach** is already wired in `~/.config/zsh/rc.d/55-tmux.zsh` (opt out per shell: `NO_TMUX=1`).
+
+Plugins live under `plugins/` (git-ignored — reinstall anytime with `prefix I`).
 
 ## Decisions & rationale
 
@@ -92,15 +114,17 @@ speaks *tmux* (`C-b c`=new) — different alphabets on purpose.
 
 ## File layout (`~/.config/tmux/`)
 ```
-tmux.conf              entry point: sources the rest
-options.conf           behaviour: mouse, vi copy-mode, truecolor, escape-time, clipboard
-keybindings.conf       prefix verbs (all -N described): s/v/h/j/k/l/H-L/m/q/o, c/n/b, f, ?
-plugins.conf           TPM + plugin list + sessionx/floax/resurrect settings (runs TPM last)
-theme.conf             tokyo-night-tmux options
-sessionizer.aliases    short session-name overrides for ~/Projects folders
-scripts/sessionizer.sh fzf over ~/Projects (alias + auto-clean naming)
-iterm2-cmd-layer.json  iTerm2 Dynamic Profile = the CMD layer
-DESIGN.md              this file
+tmux.conf               entry point: sources the rest
+options.conf            behaviour: mouse, vi copy-mode, truecolor, escape-time, clipboard
+keybindings.conf        prefix verbs (all -N described): s/v/h/j/k/l/H-L/m/q/o, c/n/b, f, N, ?
+plugins.conf            TPM + plugin list + sessionx/floax/resurrect settings (runs TPM last)
+theme.conf              tokyo-night-tmux options
+sessionizer.aliases     optional per-folder session-name overrides
+scripts/sessionizer.sh  picker over ~/Projects (prefix f / Cmd+P)
+scripts/session-here.sh new session from the current folder (prefix N)
+scripts/new-window.sh   popup that names a new window (prefix c / Cmd+T)
+iterm2-cmd-layer.json   iTerm2 Dynamic Profile = the CMD layer
+README.md               this file
 ```
 
 > **Picker display:** shows the **folder name only** (full path is in the preview + used for
@@ -148,3 +172,12 @@ that inherits your default profile and only adds these `Send Hex Code` mappings 
 Set as Default*. **Rollback:** delete the symlink (or pick another profile). CMD bindings are
 iTerm2-local — they don't travel over SSH; the `C-b` prefix is the portable fallback.
 Notes: `Cmd+K` (normally clear buffer) becomes pane-down; `Cmd+C/V/F` are untouched.
+
+## Troubleshooting
+- **Glyphs show as boxes** → set a Nerd Font in iTerm2 (Settings ▸ Profiles ▸ Text).
+- **Cmd shortcuts do nothing** → activate the “tmux (CMD layer)” profile, then reopen iTerm2.
+- **`Cmd+1-9` switches iTerm tabs, not tmux windows** → use `Ctrl+1-9` (by design — `Cmd+num` is iTerm's).
+- **floax `C-M-…` resize keys do nothing** → use the `prefix P` menu, or set iTerm2 Right Option = `Esc+`.
+- **A new-window popup didn't appear after editing config** → reload: `prefix r`.
+- **`tmux-resurrect file not found` on the very first start** → benign; it seeds after the first save.
+- **A plugin or menu looks broken** → reinstall plugins: `prefix I`.
