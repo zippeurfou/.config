@@ -1,0 +1,9 @@
+HISTSIZE=5000
+HISTFILE=~/.zsh_history
+SAVEHIST=5000
+HISTDUP=erase
+setopt appendhistory sharehistory incappendhistory
+setopt hist_ignore_all_dups hist_save_no_dups hist_ignore_dups hist_find_no_dups
+setopt AUTO_PUSHD PUSHD_IGNORE_DUPS PUSHD_SILENT
+export KEYTIMEOUT=1
+export PYENV_VIRTUALENV_DISABLE_PROMPT=1

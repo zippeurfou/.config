@@ -1,0 +1,16 @@
+emulate -L zsh
+if [ $# -ne 2 ]; then
+  echo "Usage: create_project {folder_name} {virtualenv_version}"
+  return 1
+fi
+local folder_name="$1" virtualenv_version="$2"
+cd ~/Projects || return
+gh repo create "$folder_name" --private --license mit --gitignore=Python
+gh repo clone "$folder_name"
+cd ~/Projects/"$folder_name" || return
+local readme_content="# $folder_name\n\n## Description\n\nAdd project description here.\n\n## Getting Started\n\nAdd instructions on how to get started with the project.\n"
+echo "$readme_content" > README.md
+uv init --python "$virtualenv_version" --name "$folder_name"
+git add README.md
+git commit -m "Initial commit with README"
+git push

@@ -1,0 +1,13 @@
+emulate -L zsh
+if test -e "$VIRTUAL_ENV" && test -f .python-version && test ! -f pyrightconfig.json; then
+  echo "VIRTUAL_ENV detected adding pyrightconfig.json"
+  sleep 2
+  pyenv pyright
+fi
+if [[ -e "$VIRTUAL_ENV" && -f "$VIRTUAL_ENV/bin/activate" ]]; then
+  source "$VIRTUAL_ENV/bin/activate"
+  command nvim "$@"
+  deactivate
+else
+  command nvim "$@"
+fi

@@ -1,0 +1,8 @@
+emulate -L zsh
+local var="$1" service="${2:-system}" value
+value=$(security find-generic-password -s "$service" -a "$var" -w 2>/dev/null)
+if [[ -z "$value" ]]; then
+  echo "⚠️ Failed to load password for $var (service: $service)" >&2
+  return 1
+fi
+export "$var=$value"
