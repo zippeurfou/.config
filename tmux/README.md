@@ -191,12 +191,15 @@ that inherits your default profile and only adds these `Send Hex Code` mappings 
 Set as Default*. **Rollback:** delete the symlink (or pick another profile). CMD bindings are
 iTerm2-local — they don't travel over SSH; the `C-b` prefix is the portable fallback.
 Notes: `Cmd+K` (normally clear buffer) becomes pane-down; `Cmd+C/V/F` are untouched.
+The profile also sets **Left Option = Esc+** so nvim's `<M-…>` maps (e.g. `M-d`) reach nvim
+through tmux (Right Option stays Normal, for accents). Paired with `extended-keys on` in tmux.
 
 ## Troubleshooting
 - **Glyphs show as boxes** → set a Nerd Font in iTerm2 (Settings ▸ Profiles ▸ Text).
 - **Cmd shortcuts do nothing** → activate the “tmux (CMD layer)” profile, then reopen iTerm2.
 - **`Cmd+1-9` switches iTerm tabs, not tmux windows** → use `Ctrl+1-9` (by design — `Cmd+num` is iTerm's).
-- **floax `C-M-…` resize keys do nothing** → use the `prefix P` menu, or set iTerm2 Right Option = `Esc+`.
+- **floax `C-M-…` resize keys** → use the `prefix P` menu (those are Ctrl+Meta combos; the menu is the reliable path).
+- **nvim `<M-…>` keys don't reach nvim** → Option must send Meta as **Esc+**, not "Meta" (the CMD-layer profile sets Left Option = Esc+). Reopen iTerm2 after changing it.
 - **A new-window popup didn't appear after editing config** → reload: `prefix r`.
 - **`tmux-resurrect file not found` on the very first start** → benign; it seeds after the first save.
 - **A plugin or menu looks broken** → reinstall plugins: `prefix I`.
