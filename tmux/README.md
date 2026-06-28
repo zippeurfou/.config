@@ -4,6 +4,24 @@ A tmux config that **feels like nvim** (same window verbs), stays **invisible to
 (zero keybinding conflicts), looks like **tokyonight-night**, and **persists sessions**
 (detach / reattach / survive a terminal quit / reattach over SSH).
 
+## Philosophy
+The principles behind every decision below:
+
+- **Invisible to the editor.** Navigation is prefix-based, so tmux intercepts *nothing* until you
+  press `C-b` — your nvim keymaps always win. The prefix itself was chosen to avoid nvim too.
+- **One canonical layer + one local alias.** `C-b <key>` is the complete set and works everywhere
+  (including SSH); `Cmd+<key>` is just a faster *local* alias for the same actions; `Ctrl` is reserved
+  for shell-prompt finders. Never three different keys for one action.
+- **Cmd speaks Mac, `C-b` speaks tmux.** The two layers use different alphabets on purpose — each
+  matches the muscle memory of its world instead of forcing a compromise.
+- **Conventions over cleverness.** Sessions take their folder's name (no "smart" renaming); you name
+  windows yourself. Predictable beats magic.
+- **One source of truth.** This README is the only doc, and `C-b ?` builds its cheatsheet from the
+  *actual* bindings — so the docs can't drift from reality.
+- **Portable & persistent first.** It behaves the same locally and over SSH, and sessions survive
+  detach / quit / reboot. The Cmd layer is a convenience, never a requirement.
+- **session = project · window = task · pane = view** — switch projects with the finder; never nest tmux.
+
 ## Setup (fresh machine)
 Configs load from `~/.config/tmux/` (XDG) automatically — no `~/.tmux.conf` needed.
 
@@ -83,7 +101,7 @@ prefix** — so inside nvim nothing breaks. The verbs mirror your nvim `<C-w>` m
 | `prefix p` / `prefix P` | floax floating scratch — toggle / menu |
 | `prefix *` | native floating pane (tmux 3.7 ad-hoc; `p` is the daily scratch) |
 | `prefix [` | copy mode (vi keys: `v` select, `y` copy) |
-| `prefix ?` | **described cheatsheet** popup (`list-keys -N`, your real binds) |
+| `prefix ?` | **colorized cheatsheet** popup (built from your real binds) |
 | `prefix r` | reload config |
 
 **Floating-pane controls (while the floax pane is open):** the title shows `C-M-s/b/f/r/e/d`
@@ -123,6 +141,7 @@ sessionizer.aliases     optional per-folder session-name overrides
 scripts/sessionizer.sh  picker over ~/Projects (prefix f / Cmd+P)
 scripts/session-here.sh new session from the current folder (prefix N)
 scripts/new-window.sh   popup that names a new window (prefix c / Cmd+T)
+scripts/cheatsheet.sh   colorized prefix-key cheatsheet (prefix ?)
 iterm2-cmd-layer.json   iTerm2 Dynamic Profile = the CMD layer
 README.md               this file
 ```
