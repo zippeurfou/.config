@@ -448,81 +448,15 @@ rm -f "$tmp"
 export PEEKABOO_AI_PROVIDERS=anthropic/claude-opus-4.5
 ```
 
-### 2k — `.zwork` (UNTRACKED: work env + work secrets)
-**Create:** `~/.config/zsh/.zwork`
-```zsh
-# WORK env + secrets (untracked). Only present on work machines.
-export AWS_DEFAULT_PROFILE=data
-export GDPENV=dev
-export PRESTO_HOST="prod-ds-presto.gdp.data.grubhub.com."
-export DEV_PRESTO_HOST="dev-presto.gdp.data.grubhub.com"
-export ARTIFACTORY_USER="$(whoami)"
-export GDP_ENV_CONFIG_B64="$(echo -n '{"env":"dev","aws_env":"gdpprod","artifactory_url":"https://grubhub.jfrog.io/artifactory/api/pypi/pypi-testing/simple","splunk_forwarders":"10.174.30.0:9997,10.174.49.85:9997","s3ArtifactBucket":"s3://grubhub-dl-artifacts-dev"}' | base64)"
-export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json"
-export GOOGLE_CLOUD_PROJECT=wonder-sandbox
-export GOOGLE_GENAI_USE_VERTEXAI=True
-export GOOGLE_CLOUD_LOCATION=global
+> **NOTE (load-order safety):** The secrets split — creating `.zwork` and rewriting
+> `.zprivate` to use `zload_secrets` — has been **moved to Task 3 (steps 3d/3e)**.
+> Reason: the *old* `.zshrc` is still live during Task 2 and sources `.zprivate`; if we
+> rewrote `.zprivate` to call `zload_secrets` now, that function (autoloaded only by the
+> *new* `.zshrc`) wouldn't exist yet, so any terminal opened before the cutover would fail
+> to load personal secrets. We therefore leave the current working `.zprivate` untouched
+> until *after* the cutover. Task 2 creates ONLY new tracked files.
 
-# work secrets from keychain (parallel)
-zload_secrets <<'SECRETS'
-sec|JENKINS_TOKEN
-sec|JENKINS_PREPROD_TOKEN
-sec|JENKINS_PROD_TOKEN
-sec|GHTOKEN
-sec|PAGERDUTY_API_KEY
-sec|ARTIFACTORY_TOKEN
-sec|DD_APP_KEY|datadog
-sec|DD_API_KEY|datadog
-sec|JIRA_PERSONAL_TOKEN|opencode-mcp
-sec|REDASH_API_TOKEN
-sec|REDASH_USERNAME
-sec|REDASH_BASE_URL
-krg|OKTA_PASSWORD|okta|password
-SECRETS
-# PRESTO_PASSWORD is the same okta secret — reuse, don't look up twice
-export PRESTO_PASSWORD="$OKTA_PASSWORD"
-
-# UV artifactory index (two keychain lookups composed into one URL)
-{
-  _u=$(keyring get https://grubhub.jfrog.io/artifactory/api/pypi/pypi/simple username 2>/dev/null)
-  _p=$(keyring get https://grubhub.jfrog.io/artifactory/api/pypi/pypi/simple password 2>/dev/null)
-  if [[ -n $_u && -n $_p ]]; then
-    export UV_DEFAULT_INDEX="https://${_u}:${_p}@grubhub.jfrog.io/artifactory/api/pypi/pypi/simple"
-    export UV_INDEX="https://${_u}:${_p}@grubhub.jfrog.io/artifactory/api/pypi/pypi-testing/simple"
-  fi
-  unset _u _p
-}
-```
-
-### 2l — `.zprivate` (UNTRACKED: personal secrets) — REWRITE
-> The existing `.zprivate` is the source of these values; back it up first, then replace.
-```bash
-cp ~/.config/zsh/.zprivate ~/.config/zsh/.zprivate.pre-reorg
-```
-**Replace** `~/.config/zsh/.zprivate` with:
-```zsh
-# PERSONAL secrets / private env (untracked).
-# TODO: move the two plaintext LOLMATCHUP creds below into the keychain.
-export LOLMATCHUP_SUMMONER_NAME=zippeurfou
-export LOLMATCHUP_REGION=euw1
-# NOTE: copy the two REAL plaintext values from the current .zprivate (do NOT
-# write them into this tracked plan doc — gitleaks will block the commit).
-export LOLMATCHUP_PROD_TRAINING_DATA_API_KEY=<copy-from-current-.zprivate>
-export LOLMATCHUP_PROD_PUBLIC_DATABASE_URL="<copy-from-current-.zprivate>"
-
-# personal secrets from keychain (parallel). Unquoted heredoc so $USER expands.
-zload_secrets <<SECRETS
-sec|RAILWAY_TOKEN
-sec|LOLMATCHUP_RIOT_API_KEY
-sec|PLAYWRIGHT_MCP_EXTENSION_TOKEN
-krg|ANTHROPIC_API_KEY|Claude Code|$USER
-SECRETS
-
-# GitHub CLI token (spawns gh once at startup; remove this line to lazy it)
-export GITHUB_TOKEN="$(gh auth token 2>/dev/null)"
-```
-
-**Step — commit the additive files (tracked ones only; .zwork/.zprivate are gitignored):**
+**Step — commit the additive files (all tracked; no secrets files touched here):**
 ```bash
 cd ~/.config
 git add zsh/rc.d zsh/aliases.zsh zsh/functions zsh/env.zsh
@@ -609,6 +543,94 @@ git -C ~/.config add zsh/.zshenv zsh/.zshrc zsh/plugins/zsh-z
 git -C ~/.config rm --cached zsh/symlink/.zshenv 2>/dev/null || true
 git -C ~/.config commit -m "feat(zsh): wire orchestrator, fix .zshenv drift, move zsh-z into plugins"
 ```
+
+> At this point the NEW `.zshrc` is live and it sources the OLD (self-contained)
+> `.zprivate`, which still works on its own. `zload_secrets` is now autoloaded.
+> Only now is it safe to split the secrets.
+
+### 3d — create `.zwork` (UNTRACKED: work env + work secrets)
+**Create:** `~/.config/zsh/.zwork`
+```zsh
+# WORK env + secrets (untracked). Only present on work machines.
+export AWS_DEFAULT_PROFILE=data
+export GDPENV=dev
+export PRESTO_HOST="prod-ds-presto.gdp.data.grubhub.com."
+export DEV_PRESTO_HOST="dev-presto.gdp.data.grubhub.com"
+export ARTIFACTORY_USER="$(whoami)"
+export GDP_ENV_CONFIG_B64="$(echo -n '{"env":"dev","aws_env":"gdpprod","artifactory_url":"https://grubhub.jfrog.io/artifactory/api/pypi/pypi-testing/simple","splunk_forwarders":"10.174.30.0:9997,10.174.49.85:9997","s3ArtifactBucket":"s3://grubhub-dl-artifacts-dev"}' | base64)"
+export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json"
+export GOOGLE_CLOUD_PROJECT=wonder-sandbox
+export GOOGLE_GENAI_USE_VERTEXAI=True
+export GOOGLE_CLOUD_LOCATION=global
+
+# work secrets from keychain (parallel)
+zload_secrets <<'SECRETS'
+sec|JENKINS_TOKEN
+sec|JENKINS_PREPROD_TOKEN
+sec|JENKINS_PROD_TOKEN
+sec|GHTOKEN
+sec|PAGERDUTY_API_KEY
+sec|ARTIFACTORY_TOKEN
+sec|DD_APP_KEY|datadog
+sec|DD_API_KEY|datadog
+sec|JIRA_PERSONAL_TOKEN|opencode-mcp
+sec|REDASH_API_TOKEN
+sec|REDASH_USERNAME
+sec|REDASH_BASE_URL
+krg|OKTA_PASSWORD|okta|password
+SECRETS
+# PRESTO_PASSWORD is the same okta secret — reuse, don't look up twice
+export PRESTO_PASSWORD="$OKTA_PASSWORD"
+
+# UV artifactory index (two keychain lookups composed into one URL)
+{
+  _u=$(keyring get https://grubhub.jfrog.io/artifactory/api/pypi/pypi/simple username 2>/dev/null)
+  _p=$(keyring get https://grubhub.jfrog.io/artifactory/api/pypi/pypi/simple password 2>/dev/null)
+  if [[ -n $_u && -n $_p ]]; then
+    export UV_DEFAULT_INDEX="https://${_u}:${_p}@grubhub.jfrog.io/artifactory/api/pypi/pypi/simple"
+    export UV_INDEX="https://${_u}:${_p}@grubhub.jfrog.io/artifactory/api/pypi/pypi-testing/simple"
+  fi
+  unset _u _p
+}
+```
+
+### 3e — rewrite `.zprivate` (UNTRACKED: personal secrets only)
+> The CURRENT `.zprivate` holds the real values. Back it up, extract the two plaintext
+> LOLMATCHUP values from it (NOT from this doc — placeholders here), then replace.
+```bash
+cp ~/.config/zsh/.zprivate ~/.config/zsh/.zprivate.pre-reorg
+grep -E 'LOLMATCHUP_PROD_(TRAINING_DATA_API_KEY|PUBLIC_DATABASE_URL)' ~/.config/zsh/.zprivate.pre-reorg
+```
+**Replace** `~/.config/zsh/.zprivate` with (substituting the two real values you just printed):
+```zsh
+# PERSONAL secrets / private env (untracked).
+# TODO: move the two plaintext LOLMATCHUP creds below into the keychain.
+export LOLMATCHUP_SUMMONER_NAME=zippeurfou
+export LOLMATCHUP_REGION=euw1
+export LOLMATCHUP_PROD_TRAINING_DATA_API_KEY=<paste-real-value-from-.zprivate.pre-reorg>
+export LOLMATCHUP_PROD_PUBLIC_DATABASE_URL="<paste-real-value-from-.zprivate.pre-reorg>"
+
+# personal secrets from keychain (parallel). Unquoted heredoc so $USER expands.
+zload_secrets <<SECRETS
+sec|RAILWAY_TOKEN
+sec|LOLMATCHUP_RIOT_API_KEY
+sec|PLAYWRIGHT_MCP_EXTENSION_TOKEN
+krg|ANTHROPIC_API_KEY|Claude Code|$USER
+SECRETS
+
+# GitHub CLI token (spawns gh once at startup; remove this line to lazy it)
+export GITHUB_TOKEN="$(gh auth token 2>/dev/null)"
+```
+
+**Step — VERIFY the split (this is the second risky moment):**
+```bash
+sh ~/zsh-reorg-verify.sh
+zsh -l -i -c 'typeset -x' 2>/dev/null | sort > /tmp/after-split.txt
+diff ~/zsh-reorg-baseline.txt /tmp/after-split.txt   # no MISSING vars allowed
+```
+**Acceptance:** `ALL GOOD`; every secret var still `set(...)`; no missing vars vs baseline.
+`.zwork`/`.zprivate` are gitignored → nothing to commit (confirm `git status` shows them ignored).
+**If broken:** restore the working secrets instantly: `cp ~/.config/zsh/.zprivate.pre-reorg ~/.config/zsh/.zprivate` (and remove `.zwork`), then diagnose.
 
 ---
 
