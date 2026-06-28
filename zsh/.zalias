@@ -120,6 +120,28 @@ opencode_setup() {
     opencode
 }
 
+s3yazi() {
+  local bucket="${1:?Usage: s3yazi bucket/path}"
+  local mountpoint="/tmp/s3yazi_$$"
+  mkdir -p "$mountpoint"
+
+  eval $(aws configure export-credentials --profile data --format env)
+  rclone nfsmount ":s3:${bucket}" "$mountpoint" \
+    --s3-env-auth=true --s3-region=us-east-1 --s3-provider=AWS \
+    --vfs-cache-mode full --dir-cache-time 30s --daemon
+
+  sleep 2
+  yazi "$mountpoint"
+
+  umount "$mountpoint" 2>/dev/null
+  rmdir "$mountpoint" 2>/dev/null
+}
+
+s3hmr () {
+  s3yazi grubhub-gdp-search-data-science-data-assets-dev/shared/homepage_merchant_ranker_gdp
+}
+
+
 # Alias for convenience
 alias oc='opencode_setup'
 
