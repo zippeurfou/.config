@@ -39,7 +39,7 @@ prefix** — so inside nvim nothing breaks. The verbs mirror your nvim `<C-w>` m
 ### Windows (tabs)
 | Keys | Action |
 |---|---|
-| `prefix c` | new window — **prompts for a name** (pre-filled with the folder) |
+| `prefix c` | new window — **names it in a popup** (empty field; empty input cancels) |
 | `prefix n` / `prefix b` | next / previous window |
 | `prefix 1`…`9` | jump to window N |
 | `prefix ,` | rename window |
@@ -48,8 +48,9 @@ prefix** — so inside nvim nothing breaks. The verbs mirror your nvim `<C-w>` m
 ### Sessions (one window, many persistent sessions — switch, don't tab them)
 | Keys | Action |
 |---|---|
-| `prefix Tab` | **sessionx** — fuzzy search / create / kill / preview sessions |
+| `prefix Tab` | **sessionx** — switch / create / **kill (`Ctrl-K`)** / rename (`Ctrl-R`) |
 | `prefix f` | **sessionizer** — fuzzy-find a `~/Projects` repo → switch/create session |
+| `prefix N` | **new session from the current folder** (auto-named) |
 | `prefix )` / `prefix (` | next / previous session |
 | `prefix d` | detach (session keeps running in the background) |
 | `prefix $` | rename session |
@@ -102,9 +103,14 @@ iterm2-cmd-layer.json  iTerm2 Dynamic Profile = the CMD layer
 DESIGN.md              this file
 ```
 
-> **Session naming:** `sessionizer.sh` shortens names (lowercase, separators→`-`, trailing
-> `gdp` stripped). For exact control add `folder=short` lines to `sessionizer.aliases`
-> (e.g. `homepage_merchant_ranker_gdp=merch-ranker`).
+> **Picker display:** shows the **folder name only** (full path is in the preview + used for
+> the session). **What the project finder lists:** children of `~/Projects` (add more via `SESSIONIZER_ROOTS`,
+> or standalone dirs via `SESSIONIZER_EXTRAS`, space-separated). For a session from the folder
+> you're *in*, use **`prefix N`**. For any dir you've merely visited, use **`prefix Tab`**
+> (sessionx + zoxide). Inside `prefix Tab`: **`Ctrl-K`** kill · `Ctrl-R` rename · `Enter` switch.
+>
+> **Session naming:** named after the folder (only `.`/`:` sanitized, a leading dot stripped).
+> Override a specific folder's name in `sessionizer.aliases` if you ever want to.
 
 ## Persistence behaviour
 - **continuum** auto-saves every 15 min and **auto-restores on tmux start**.
