@@ -1,0 +1,24 @@
+# fif — find-in-files: telescope-style live grep under CWD (recursive).
+#
+# Default mode: ripgrep searches file CONTENTS live on every keystroke
+# (--disabled hands all matching to rg). Honors .gitignore, shows dotfiles,
+# skips .git/, smart-case. ENTER opens the match in nvim at the line.
+#
+# Press CTRL-F inside the picker to FREEZE the current rg results and switch to
+# fzf fuzzy-narrowing on top of them (telescope second-stage filter). If you
+# never press it, you just get plain recursive grep.
+#
+# Bound to Ctrl-G. Also usable as a command: `fif` or `fif initial query`.
+emulate -L zsh
+local rg="rg --column --line-number --no-heading --color=always --smart-case --hidden --glob '!.git'"
+fzf --ansi --disabled --query "${*:-}" \
+    --prompt '1.rg> ' \
+    --delimiter : \
+    --bind "start:reload:$rg {q}" \
+    --bind "change:reload:sleep 0.1; $rg {q} || true" \
+    --bind 'ctrl-f:unbind(change,ctrl-f)+change-prompt(2.fzf> )+enable-search+clear-query' \
+    --color 'hl:-1:underline,hl+:-1:underline:reverse' \
+    --preview 'bat --color=always {1} --highlight-line {2}' \
+    --preview-window 'right,60%,border-left,+{2}+3/3,~3' \
+    --header 'CTRL-F fuzzy-filter results · CTRL-/ toggle preview · ENTER open in nvim' \
+    --bind 'enter:become(nvim {1} +{2})'

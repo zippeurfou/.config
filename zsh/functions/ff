@@ -1,0 +1,10 @@
+# ff — fuzzy file finder under CWD (recursive). Prints selected path(s), one
+# per line. Honors .gitignore, shows dotfiles, skips .git/. Tab = multi-select.
+# Bound to Ctrl-F (inserts path on the command line); also usable as: nvim $(ff)
+emulate -L zsh
+fd --type f --hidden --follow --exclude .git 2>/dev/null \
+  | fzf --multi \
+        --prompt 'files> ' \
+        --preview 'bat --color=always --style=numbers --line-range=:500 {}' \
+        --preview-window 'right,60%,border-left' \
+        --header 'TAB multi-select · CTRL-/ toggle preview'

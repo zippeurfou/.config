@@ -26,3 +26,24 @@ for km in viopp visual; do
     bindkey -M $km $c select-bracketed
   done
 done
+
+# --- fzf finders (atuin-style): Ctrl-F = files, Ctrl-G = grep-in-files ---
+# Ctrl-F: pick file(s) under CWD, insert the path(s) on the command line.
+_ff_widget() {
+  emulate -L zsh
+  local out; out="$(ff)"
+  if [[ -n $out ]]; then
+    local -a picks=("${(@f)out}")
+    LBUFFER+="${(j: :)${(@q)picks}} "
+  fi
+  zle reset-prompt
+}
+zle -N _ff_widget
+# Ctrl-G: live-grep file contents; ENTER opens the match in nvim at the line.
+# accept-line so fif runs in normal shell context (become->nvim owns the tty).
+_fif_widget() { emulate -L zsh; zle push-line; BUFFER='fif'; zle accept-line; }
+zle -N _fif_widget
+for km in viins vicmd; do
+  bindkey -M $km '^F' _ff_widget
+  bindkey -M $km '^G' _fif_widget
+done
