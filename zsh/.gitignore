@@ -1,0 +1,15 @@
+# secrets — never track
+.zprivate
+.zwork
+# generated / machine-specific caches
+.zcompdump*
+.zsh_history
+.zsh_history.LOCK
+.zsh_sessions/
+.zsh_sessions
+# os / editor cruft
+.DS_Store
+# manual backups
+*.bak-*
+*.backup
+*.pre-reorg
