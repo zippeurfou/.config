@@ -82,7 +82,7 @@ prefix** — so inside nvim nothing breaks. The verbs mirror your nvim `<C-w>` m
 | `prefix c` | new window — **names it in a popup** (empty field; empty input cancels) |
 | `prefix n` / `prefix b` | next / previous window |
 | `prefix 1`…`9` | jump to window N |
-| `prefix ,` | rename window |
+| `prefix ,` | rename window — **renames it in a popup** (empty field; empty input cancels) |
 | `prefix &` | kill window (confirm) |
 
 ### Sessions (one window, many persistent sessions — switch, don't tab them)
@@ -134,13 +134,14 @@ speaks *tmux* (`C-b c`=new) — different alphabets on purpose.
 ```
 tmux.conf               entry point: sources the rest
 options.conf            behaviour: mouse, vi copy-mode, truecolor, escape-time, clipboard
-keybindings.conf        prefix verbs (all -N described): s/v/h/j/k/l/H-L/m/q/o, c/n/b, f, N, ?
+keybindings.conf        prefix verbs (all -N described): s/v/h/j/k/l/H-L/m/q/o, c/,/n/b, f, N, ?
 plugins.conf            TPM + plugin list + sessionx/floax/resurrect settings (runs TPM last)
 theme.conf              tokyo-night-tmux options
 sessionizer.aliases     optional per-folder session-name overrides
 scripts/sessionizer.sh  picker over ~/Projects (prefix f / Cmd+P)
 scripts/session-here.sh new session from the current folder (prefix N)
 scripts/new-window.sh   popup that names a new window (prefix c / Cmd+T)
+scripts/rename-window.sh popup that renames the current window (prefix ,)
 scripts/cheatsheet.sh   colorized prefix-key cheatsheet (prefix ?)
 iterm2-cmd-layer.json   iTerm2 Dynamic Profile = the CMD layer
 README.md               this file
