@@ -1,0 +1,114 @@
+# ~/.config/herdr/config.toml — herdr 0.7.1
+# Rebuilds the feel of ~/.config/tmux: prefix = Ctrl+b, nvim-style window verbs,
+# session=workspace / window=tab / pane=pane, tokyo-night, compact, persistent.
+# Reload after edits with `prefix r` (or `herdr server reload-config`).
+# See PLAN.md in this dir for the full mapping, gaps, and test checklist.
+
+[theme]
+name = "tokyo-night"          # matches your nvim tokyonight-night
+
+[terminal]
+new_cwd = "follow"            # splits / new tabs open in the current pane's dir (tmux -c pane_current_path)
+shell_mode = "auto"          # login shell on macOS so PATH / brew init runs in new panes
+
+[keys]
+prefix = "ctrl+b"            # same prefix as your tmux
+
+# --- reload / help / misc (your prefix r, prefix ?) ---
+reload_config = "prefix+r"
+help = "prefix+?"
+settings = "prefix+shift+s"          # moved off prefix+s (now a split)
+open_notification_target = ""        # unbind to free prefix+o for "keep only this pane"
+
+# --- panes: splits mirror nvim <C-w>s / <C-w>v ---
+split_horizontal = "prefix+s"        # stacked  (tmux split-window -v)
+split_vertical   = "prefix+v"        # side-by-side (tmux split-window -h)
+
+# --- pane navigation: prefix h/j/k/l ---
+focus_pane_left  = "prefix+h"
+focus_pane_down  = "prefix+j"
+focus_pane_up    = "prefix+k"
+focus_pane_right = "prefix+l"
+
+# --- pane zoom / kill / resize ---
+zoom = "prefix+m"                    # <C-w>m
+close_pane = "prefix+q"              # your prefix q = kill pane (herdr default is x)
+resize_mode = "prefix+shift+r"       # enter mode, then h/j/k/l to resize, esc to exit
+cycle_pane_next = ""                 # freed: prefix+tab -> workspace switcher (below)
+cycle_pane_previous = ""
+
+# --- windows == tabs (your c / n / b / , / & / 1-9) ---
+new_tab = "prefix+c"                 # named via prompt_new_tab_name (see [ui])
+next_tab = "prefix+n"
+previous_tab = "prefix+b"            # you use n/b, not n/p
+rename_tab = "prefix+comma"          # prefix ,
+close_tab = "prefix+ampersand"       # prefix &
+switch_tab = "prefix+1..9"
+
+# --- sessions == workspaces (your Tab / N / ( ) / d / $) ---
+workspace_picker = ["prefix+tab", "prefix+w"]   # sessionx-style switch among open projects
+new_workspace = "prefix+shift+n"                # your prefix N (new project from cwd)
+rename_workspace = "prefix+shift+w"             # tmux '$' isn't a valid herdr key
+close_workspace = "prefix+shift+d"
+previous_workspace = "prefix+shift+left"        # tmux '(' isn't a valid herdr key
+next_workspace = "prefix+shift+right"           # tmux ')' isn't a valid herdr key
+detach = "prefix+d"                             # tmux prefix d
+goto = "prefix+g"                               # bonus: fuzzy jump picker
+
+# --- copy mode (vi keys built-in: v select, y copy -> system clipboard) ---
+copy_mode = "prefix+["
+
+# --- sidebar (herdr dashboard; no tmux top-status equivalent) ---
+toggle_sidebar = "prefix+shift+b"
+
+# === custom commands ===
+# prefix f  -> herdr-sessionizer plugin: auto-scan ~/Projects, ThePrimeagen-style
+[[keys.command]]
+key = "prefix+f"
+type = "plugin_action"
+command = "sessionizer.open"
+description = "sessionizer: find / open a project"
+
+# prefix F  -> portable hand-rolled finder (fzf + zoxide, no plugin). A/B vs prefix f.
+[[keys.command]]
+key = "prefix+shift+f"
+type = "pane"
+command = "$HOME/.config/herdr/scripts/sessionizer.sh"
+description = "sessionizer (custom fzf+zoxide)"
+
+# prefix o  -> keep only this pane (your <C-w>o); closes the other panes in this tab
+[[keys.command]]
+key = "prefix+o"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/only-pane.sh"
+description = "keep only this pane"
+
+# prefix p  -> scratch shell (poor-man's floax: a temporary pane, not a true float)
+[[keys.command]]
+key = "prefix+p"
+type = "pane"
+command = "$SHELL"
+description = "scratch shell (temporary)"
+
+[ui]
+prompt_new_tab_name = true          # named-window popup (your prefix c / new-window.sh)
+pane_gaps = false                   # compact, no margin between panes
+pane_borders = true                 # thin borders like tmux panes
+confirm_close = true                # like your & kill-window confirm
+accent = "blue"                     # tokyonight-ish highlight
+
+[ui.toast]
+delivery = "off"                    # quiet like tmux (set "system" when running agents)
+
+[ui.sound]
+enabled = false                     # quiet like tmux
+
+[session]
+resume_agents_on_restore = true     # resume supported agent CLIs after a server restart
+
+[experimental]
+pane_history = true                 # mirrors your @resurrect-capture-pane-contents on
+# NOTE: pane_history saves recent pane output to disk (may include secrets). Set false to opt out.
+
+[advanced]
+scrollback_limit_bytes = 52428800   # ~50 MB, generous like your history-limit 100000

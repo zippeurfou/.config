@@ -1,0 +1,21 @@
+# herdr-sessionizer config (prefix+f).
+# Minimal, tmux-sessionizer-style: fuzzy-pick a project under roots -> open a
+# workspace with one shell pane at that dir. Edit to taste (see the plugin's
+# default template for a richer nvim+agent+lazygit layout, or add a per-repo
+# <repo>/.sessionizer/config.toml override).
+
+[projects]
+# Parent folders the fuzzy picker scans (same as your sessionizer.sh ~/Projects).
+roots = ["~/Projects"]
+
+[layout]
+placement = "overlay"   # the picker opens as an overlay
+focus = "shell"          # focus this pane id after creating the workspace
+
+[tabs.main]
+label = "main"
+
+[[tabs.main.panes]]
+id = "shell"
+title = "shell"
+# command omitted -> herdr opens your default login shell at the project dir

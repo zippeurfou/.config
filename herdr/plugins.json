@@ -1,0 +1,74 @@
+[
+  {
+    "plugin_id": "sessionizer",
+    "name": "Sessionizer",
+    "version": "0.3.0",
+    "min_herdr_version": "0.7.0",
+    "description": "Inspired by ThePrimeagen's tmux-sessionizer: fuzzy pickers to open projects and Git worktrees into Herdr workspaces.",
+    "manifest_path": "/Users/mferradou/.config/herdr/plugins/github/sessionizer-66e03d1ff740/herdr-plugin.toml",
+    "plugin_root": "/Users/mferradou/.config/herdr/plugins/github/sessionizer-66e03d1ff740",
+    "enabled": true,
+    "platforms": [
+      "macos"
+    ],
+    "build": [
+      {
+        "command": [
+          "bun",
+          "install",
+          "--frozen-lockfile"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "open",
+        "title": "Open sessionizer",
+        "command": [
+          "bun",
+          "run",
+          "src/open-pane.ts"
+        ]
+      },
+      {
+        "id": "worktree-open",
+        "title": "Open worktree",
+        "command": [
+          "bun",
+          "run",
+          "src/open-worktree-pane.ts"
+        ]
+      }
+    ],
+    "panes": [
+      {
+        "id": "sessionizer",
+        "title": "Sessionizer",
+        "placement": "overlay",
+        "command": [
+          "bun",
+          "run",
+          "src/sessionizer-pane.ts"
+        ]
+      },
+      {
+        "id": "worktree",
+        "title": "Worktree",
+        "placement": "overlay",
+        "command": [
+          "bun",
+          "run",
+          "src/worktree-pane.ts"
+        ]
+      }
+    ],
+    "source": {
+      "kind": "github",
+      "owner": "andrewchng",
+      "repo": "herdr-sessionizer",
+      "resolved_commit": "47edf29378ab9759ddef401c633f1496b2647c0b",
+      "managed_path": "/Users/mferradou/.config/herdr/plugins/github/sessionizer-66e03d1ff740",
+      "installed_unix_ms": 1782739877702
+    }
+  }
+]

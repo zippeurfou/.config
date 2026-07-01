@@ -31,3 +31,10 @@ atuin/key
 
 # Password manager sensitive data
 pwmanager/.env
+
+# herdr — runtime state, captured pane output, logs, and vendored plugins
+# (session captures can contain secrets; plugins/github is reinstallable from plugins.json)
+herdr/session.json
+herdr/session-history.json
+herdr/*.log
+herdr/plugins/github/
