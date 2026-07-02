@@ -25,7 +25,7 @@ return {
   },
   -- search with s/S
   {
-    'ggandor/leap.nvim',
+    url = 'https://codeberg.org/andyg/leap.nvim',
     config = function()
       -- require('leap').add_default_mappings()
       local leap = require('leap')
@@ -45,7 +45,7 @@ return {
   -- display  next f and move with f<search> f for next
   {
     'ggandor/flit.nvim',
-    dependencies = { 'ggandor/leap.nvim' },
+    dependencies = { { url = 'https://codeberg.org/andyg/leap.nvim' } },
     config = function()
       require('flit').setup()
     end,
