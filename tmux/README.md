@@ -16,8 +16,9 @@ The principles behind every decision below:
   matches the muscle memory of its world instead of forcing a compromise.
 - **Conventions over cleverness.** Sessions take their folder's name (no "smart" renaming); you name
   windows yourself. Predictable beats magic.
-- **One source of truth.** This README is the only doc, and `C-b ?` builds its cheatsheet from the
-  *actual* bindings — so the docs can't drift from reality.
+- **Generated keymap, single prose doc.** `C-b ?` builds its cheatsheet from the *actual* bindings, so
+  the **keymap** can't drift. This README is the only prose doc — it *can* still fall out of sync, so the
+  cheatsheet (not this file) is the source of truth for keys.
 - **Portable & persistent first.** It behaves the same locally and over SSH, and sessions survive
   detach / quit / reboot. The Cmd layer is a convenience, never a requirement.
 - **session = project · window = task · pane = view** — switch projects with the finder; never nest tmux.
@@ -163,8 +164,10 @@ README.md               this file
 - Save state lives in `~/.local/share/tmux/resurrect/` (outside this repo).
 
 ## Dependencies
-Present: `fzf`, `zoxide`, brew `bash` 5.3, `jq`, `bc`, `gdate`. Status widgets enabled:
-**git, path, hostname**. To add **battery / netspeed** widgets later:
+Present: `fzf`, `zoxide`, brew `bash` 5.3, `jq`, `bc`, `gdate`. **`status-right` is intentionally blanked**
+(in `plugins.conf`), so the bar shows only the session name + window tabs — the theme's path / git / hostname
+widgets don't render (and `show_hostname` is `0` in `theme.conf`). To show them, remove the `status-right ""`
+line; **battery / netspeed** additionally need:
 ```
 brew install gawk gnu-sed
 # then in theme.conf set the widget(s) to 1 and: prefix r
