@@ -8,13 +8,18 @@ zsh/.zshrc.backup
 zsh/.zsh_history
 pyrightconfig.json
 
-# Third-party tools (not portable)
+# Third-party tools (not portable) — runtime state / credentials
 act/
 gcloud/
 github-copilot/
 nvm/
 op/
 iterm2/
+cagent/
+gws/
+homebrew/
+rclone/
+twg/
 
 # macOS
 .DS_Store
@@ -38,3 +43,30 @@ herdr/session.json
 herdr/session-history.json
 herdr/*.log
 herdr/plugins/github/
+
+# opencode — tool-managed / machine-specific (reinstallable, or external symlinks)
+opencode/superpowers/
+opencode/skill/gws-*
+opencode/skill/twg/
+opencode/skill/twg-*/
+
+# opencode — empty/generated artifacts
+opencode/download.html
+
+# opencode — work-internal (repo is PUBLIC: keep Grubhub-internal tooling out)
+opencode/command/1_1_notes.md
+opencode/command/fill_search_wbr.md
+opencode/command/interview_form.md
+opencode/command/mbr_narrative.md
+opencode/command/performance_review_format.md
+opencode/skill/redash/
+opencode/skill/gdp-glossary/
+opencode/skill/md-to-gdoc/
+opencode/docs/plans/2026-06-27-redash-skill-design.md
+
+# nvim — scratch notes, sessions, screenshots (not tracked)
+nvim/COMPLETION_TOGGLE.md
+nvim/LSP_ANALYSIS.md
+nvim/keymaps.txt
+nvim/session-*.md
+nvim/*.png
