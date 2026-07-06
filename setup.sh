@@ -62,64 +62,20 @@ fi
 print_step "Updating Homebrew..."
 brew update
 
-# Install core tools
-print_step "Installing core tools..."
-
-packages=(
-    "zsh"
-    "starship"
-    "fzf"
-    "direnv"
-    "atuin"
-    "eza"
-    "ripgrep"
-    "bat"
-    "fd"
-    "neovim"
-    "nvm"
-    "uv"
-    "pyenv"
-    "pyenv-virtualenv"
-    "zsh-autocomplete"
-    "zsh-autosuggestions"
-    "zsh-syntax-highlighting"
-    "zsh-completions"
-)
-
-casks=(
-    "ghostty"
-    "iterm2"
-    "nikitabobko/tap/aerospace"
-    "font-hack-nerd-font"
-)
-
-for package in "${packages[@]}"; do
-    if brew list "$package" &>/dev/null; then
-        print_success "$package already installed"
-    else
-        print_step "Installing $package..."
-        brew install "$package"
-    fi
-done
-
-for cask in "${casks[@]}"; do
-    cask_name="${cask##*/}"
-    if brew list --cask "$cask_name" &>/dev/null 2>&1; then
-        print_success "$cask_name already installed"
-    else
-        print_step "Installing $cask_name..."
-        brew install --cask "$cask"
-    fi
-done
-
-# Install JankyBorders
-print_step "Installing JankyBorders..."
-if ! command_exists borders; then
-    brew tap FelixKratz/formulae
-    brew install borders
-    print_success "JankyBorders installed"
+# Install everything from the Brewfile (taps, formulae, casks, and uv/npm/cargo tools).
+# The Brewfile is the single source of truth for installed packages.
+# Refresh the snapshot with:  brew bundle dump --file=~/.config/Brewfile --force
+# (then re-add the hand-maintained tools flagged in the Brewfile's "Manually added" block).
+print_step "Installing packages from Brewfile..."
+BREWFILE="$HOME/.config/Brewfile"
+if [[ ! -f "$BREWFILE" ]]; then
+    print_error "Brewfile not found at $BREWFILE"
+    exit 1
+fi
+if brew bundle install --file="$BREWFILE"; then
+    print_success "Brewfile packages installed"
 else
-    print_success "JankyBorders already installed"
+    print_warning "Some Brewfile entries failed to install (continuing setup)"
 fi
 
 # Setup Zsh
@@ -180,6 +136,22 @@ if [[ ! -d ~/.nvm ]]; then
     print_success "Created NVM directory"
 else
     print_success "NVM directory already exists"
+fi
+
+# Install pyenv + pyenv-virtualenv if missing.
+# NOTE: on this machine pyenv is git-installed under ~/.pyenv (not Homebrew), so it is
+# intentionally NOT in the Brewfile -- a plain `brew bundle dump` cannot capture it.
+print_step "Checking pyenv installation..."
+if ! command_exists pyenv; then
+    print_warning "pyenv not found. Installing via git..."
+    git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+    git clone https://github.com/pyenv/pyenv-virtualenv.git "$(pyenv root)/plugins/pyenv-virtualenv"
+    print_success "pyenv + pyenv-virtualenv installed"
+else
+    print_success "pyenv already installed"
 fi
 
 # Setup pyenv-pyright plugin
