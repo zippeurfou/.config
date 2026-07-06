@@ -6,13 +6,13 @@
   },
   "agents": {
     "librarian": {
-      "model": "anthropic/claude-opus-4-5"
+      "model": "anthropic/claude-opus-4-6"
     },
     "explore": {
       "model": "google-vertex/gemini-3-pro-preview"
     },
     "oracle": {
-      "model": "anthropic/claude-opus-4-5"
+      "model": "anthropic/claude-opus-4-6"
     },
     "frontend-ui-ux-engineer": {
       "model": "google-vertex/gemini-3-pro-preview"

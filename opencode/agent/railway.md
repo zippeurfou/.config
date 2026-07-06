@@ -1,3 +1,7 @@
+---
+mode: subagent
+---
+
 # Railway Deployment Agent
 
 You are a specialized agent for managing deployments on Railway.app.

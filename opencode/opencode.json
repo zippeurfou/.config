@@ -7,12 +7,16 @@
     "docs/AGENTS.md",
     ".cursor/rules/*.md"
   ],
-  "model": "anthropic/claude-opus-4-5",
-  "plugin": [
-    "oh-my-opencode",
-  ],
-  "small_model": "anthropic/claude-3-5-haiku-20241022",
+  "model": "google-vertex-anthropic/claude-opus-4-8@default",
+  "small_model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
   "share": "disabled",
+  "permission": {
+    "skill": {
+      "*": "allow",
+      "recipe-*": "deny",
+      "persona-*": "deny"
+    }
+  },
   "lsp": {
     "pyright": {
       "disabled": true
@@ -61,7 +65,7 @@
         "sh",
         "/Users/mferradou/.config/opencode/mcp/github.sh"
       ],
-      "enabled": true,
+      "enabled": false,
       "timeout": 15000
     },
     "mcp-google_workspace": {
@@ -70,8 +74,8 @@
         "sh",
         "/Users/mferradou/.config/opencode/mcp/google_workspace.sh"
       ],
-      "enabled": true,
-      "timeout": 30000
+      "enabled": false,
+      "timeout": 60000
     },
     "mcp-atlassian": {
       "type": "local",
@@ -79,7 +83,7 @@
         "sh",
         "/Users/mferradou/.config/opencode/mcp/atlassian.sh"
       ],
-      "enabled": true,
+      "enabled": false,
       "timeout": 30000
     },
     "mcp-arxiv": {
@@ -107,7 +111,7 @@
         "/Users/mferradou/.config/opencode/mcp/linkedin-mcp-server.sh"
       ],
       "enabled": true,
-      "timeout": 15000
+      "timeout": 60000
     },
     "mcp-semantic-scholar": {
       "type": "local",
@@ -124,7 +128,7 @@
         "sh",
         "/Users/mferradou/.config/opencode/mcp/playwright.sh"
       ],
-      "enabled": true,
+      "enabled": false,
       "timeout": 60000
     },
     "railway-mcp": {
@@ -133,7 +137,7 @@
         "sh",
         "/Users/mferradou/.config/opencode/mcp/railway.sh"
       ],
-      "enabled": true,
+      "enabled": false,
       "timeout": 30000
     },
     "mcp-slack": {
@@ -151,31 +155,8 @@
         "sh",
         "/Users/mferradou/.config/opencode/mcp/neo4j_memory.sh"
       ],
-      "enabled": true,
-      "timeout": 15000
-    },
-    "mcp-gdp": {
-      "type": "local",
-      "command": [
-        "node",
-        "/Users/mferradou/Projects/spike-gdp-mcp/dist/index.js"
-      ],
-      "enabled": true,
-      "timeout": 120000,
-      "environment": {
-        "GDP_PRESTO_HOST": "prod-ah-presto.gdp.data.grubhub.com",
-        "GDP_PRESTO_PORT": "443",
-        "GDP_PRESTO_CATALOG": "hive",
-        "GDP_PRESTO_USER": "op://Employee/Okta/username",
-        "GDP_PRESTO_PASSWORD": "op://Employee/Okta/credential",
-        "GDP_PRESTO_SCHEMA": "hive",
-        "GDP_PRESTO_SSL": "true",
-        "GDP_CACHE_TTL_HOURS": "168",
-        "GDP_BYPASS_QUERY_CONFIRMATIONS": "true",
-        "GDP_BYPASS_REDASH_CONFIRMATIONS": "false",
-        "REDASH_BASE_URL": "https://redash.gdp.data.grubhub.com",
-        "REDASH_API_KEY": "op://Employee/Redash/credential"
-      }
+      "enabled": false,
+      "timeout": 60000
     },
     "mcp-pdf": {
       "type": "local",
@@ -192,8 +173,26 @@
         "sh",
         "/Users/mferradou/.config/opencode/mcp/peekaboo.sh"
       ],
-      "enabled": true,
+      "enabled": false,
       "timeout": 60000
+    },
+    "datadog-mcp": {
+      "type": "local",
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/datadog.sh"
+      ],
+      "enabled": true,
+      "timeout": 30000
+    },
+    "drawio-mcp": {
+      "type": "local",
+      "command": [
+        "sh",
+        "/Users/mferradou/.config/opencode/mcp/drawio.sh"
+      ],
+      "enabled": true,
+      "timeout": 30000
     }
   },
   "agent": {
@@ -243,13 +242,17 @@
       }
     },
     "google": {
-      "description": "Handles Google Workspace automation and insight: Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms, Google Search. Use it for anything related to Google from reading a sheet / doc / Drive to Search on the web.",
+      "description": "Handles Google Workspace automation and insight: Gmail, Calendar, Drive, Docs, Sheets, Tasks, plus Workflow helpers (standup-report, meeting-prep, weekly-digest). Use it for anything related to Google Workspace.",
       "mode": "subagent",
-      "prompt": "You are a Google Workspace automation specialist with access to Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms, Tasks, Chat, and Google Custom Search.\n\nCAPABILITIES:\n- Read, create, edit, and manage emails in Gmail\n- Schedule, update, and query calendar events\n- Access, organize, and modify files in Google Drive\n- Create and edit Google Docs, Sheets, and Slides\n- Build and analyze Forms responses\n- Manage Tasks and send Chat messages\n- Perform web searches using Google Custom Search\n\nINSTRUCTIONS:\n1. Always verify user authentication before performing any operation\n2. For search requests, use Google Custom Search for web queries\n3. When accessing Drive files, use file IDs or precise search queries to locate documents\n4. For Sheets operations, specify ranges clearly (e.g., \"A1:D10\")\n5. When sending emails, confirm recipients and include clear subject lines\n6. Handle calendar operations with timezone awareness\n7. Return structured data (file URLs, event IDs, message links) for user reference\n\nOUTPUT FORMAT:\n- Provide direct links to created/modified resources\n- Summarize actions taken (e.g., \"Created document [Title] at [URL]\")\n- For search results, return top 5-10 most relevant items\n- Include metadata (last modified, owner, permissions) when retrieving files\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- Respect file permissions and sharing settings\n- If authentication fails, clearly explain the error\n- For bulk operations, confirm with specific counts before proceeding",
+      "prompt": "You are a Google Workspace automation specialist. You operate Workspace exclusively through the `gws` CLI (the official Google Workspace CLI), invoked via the `bash` tool. The `mcp-google_workspace` MCP is disabled — do not attempt to call its tools.\n\nMANDATORY FIRST STEP:\n- Before issuing any `gws` command, load the `gws-shared` skill via the `skill` tool. It documents auth, global flags, output formats, and security rules. Then load the per-service skill for the API you need (`gws-gmail`, `gws-drive`, `gws-calendar`, `gws-sheets`, `gws-docs`, `gws-tasks`, `gws-workflow`).\n\nCAPABILITIES:\n- Gmail: read/send/draft/reply via `gws gmail ...` and helpers (`+send`, `+reply`, `+triage`, `+watch`).\n- Drive: list/get/upload/share via `gws drive ...` and `+upload`.\n- Calendar: events/agenda via `gws calendar ...` and `+insert`, `+agenda`.\n- Sheets: read/write/append via `gws sheets ...` and `+read`, `+append`.\n- Docs: read/append via `gws docs ...` and `+write`.\n- Tasks: list/create via `gws tasks ...`.\n- Workflow helpers: `gws workflow +standup-report`, `+meeting-prep`, `+weekly-digest`, `+email-to-task`, `+file-announce`.\n\nINSTRUCTIONS:\n1. Confirm `gws auth status` shows `token_valid: true` for `mferradou@grubhub.com` before any operation. If auth is broken (403 insufficient scopes), the most common cause is a stale `~/.config/gws/token_cache.json` after a `gws auth login` — clearing it usually fixes the issue (see github.com/googleworkspace/cli/issues/764).\n2. Inspect the API method schema with `gws schema <service.resource.method>` before constructing a request body or `--params` for any non-trivial call.\n3. Use `--dry-run` to preview destructive (write/delete) operations and CONFIRM with the user before executing.\n4. Quote `--params` and `--json` values in single quotes; for Sheets ranges containing `!`, use double quotes (`\"Sheet1!A1:C10\"`) to avoid zsh history expansion.\n5. Use `--page-all` (NDJSON) for paginated results; cap with `--page-limit` to avoid runaway calls.\n6. Default output is JSON — return relevant fields (IDs, URLs, names) directly so the user can navigate.\n\nSECURITY:\n- Never print or log access tokens, refresh tokens, or `client_secret` values. If a command would leak credentials (e.g., `gws auth export --unmasked`), refuse and explain.\n- For PII-sensitive content, suggest the user pass `--sanitize` with a Model Armor template if configured.\n\nOUTPUT FORMAT:\n- Provide direct links/IDs (Drive file URL, Calendar event ID, Gmail message ID).\n- Summarize the action taken in one sentence, then the structured result.\n- Note any pagination, errors, or skipped items explicitly.",
       "permission": {
         "read": "allow",
         "webfetch": "allow",
-        "bash": "deny",
+        "bash": {
+          "gws *": "allow",
+          "gws": "allow",
+          "*": "deny"
+        },
         "write": "deny",
         "edit": "deny",
         "patch": "deny",
@@ -258,7 +261,8 @@
         "mcp-semantic-scholar_*": "deny",
         "mcp-pdf_*": "deny",
         "github-mcp_*": "allow",
-        "mcp-google_workspace_*": "allow",
+        "mcp-google_workspace_*": "deny",
+        "drawio-mcp_*": "allow",
         "mcp-atlassian_*": "deny",
         "mcp-linkedin_*": "deny",
         "mcp-gdp_*": "deny",
@@ -289,12 +293,16 @@
     },
     "atlassian": {
       "mode": "subagent",
-      "description": "Interact with Atlassian Cloud products (Jira, Confluence, etc): create, update, search, and manage issues, projects, spaces, and documentation.",
-      "prompt": "You are an Atlassian Cloud specialist managing Jira issues, Confluence documentation, and related project management tools.\n\nCAPABILITIES:\n- Create, update, search, and manage Jira issues\n- Query project boards, sprints, and backlogs\n- Access and modify Confluence pages and spaces\n- Track issue relationships (blockers, dependencies, epics)\n- Manage issue fields, labels, and custom attributes\n\nINSTRUCTIONS:\n1. When searching for issues, use JQL (Jira Query Language) for precise filtering\n2. Include relevant context when creating issues: description, acceptance criteria, labels\n3. For Confluence operations, specify the space key and page title clearly\n4. When updating issues, preserve existing data unless explicitly asked to change it\n5. Return issue keys (e.g., PROJ-123) and URLs for easy navigation\n6. Handle project-specific workflows and custom fields appropriately\n\nOUTPUT FORMAT:\n- For issue searches: Return issue key, summary, status, assignee, priority\n- For created/updated issues: Provide issue key and direct URL\n- For Confluence pages: Return page title, space, and URL\n- Include relevant metadata (created date, last updated, reporter)\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- Respect project permissions and access controls\n- If field validation fails, explain which fields are required\n- For bulk operations, confirm scope before proceeding\n- Do not delete issues or pages without explicit confirmation",
+      "description": "Interact with Atlassian work data (Jira, Confluence, Bitbucket, goals/projects/focus areas, JSM, Assets, docs, meetings, people/org, cross-product search) via the `twg` CLI. Read, create, update, search, and manage issues, pages, PRs, and project data.",
+      "prompt": "You are an Atlassian specialist. You operate Atlassian (Jira, Confluence, Bitbucket, goals/projects/focus areas, JSM, Assets, docs, meetings, search, people/org) exclusively through the `twg` CLI, invoked via the `bash` tool. The `mcp-atlassian` MCP is disabled — do not attempt to call its tools.\n\nMANDATORY FIRST STEP:\n- Before issuing any `twg` command, load the `twg` skill via the `skill` tool. It documents command discovery, routing, output handling, query languages, and anti-patterns. For synthesized outcomes (status rollups, topic deep dives, dependency maps, review queues, handoffs, operational reviews, appraisals, action lists), also load the `twg-workflows` skill.\n\nCAPABILITIES:\n- Jira: read/create/update workitems, JQL search, transitions, fields and comments, projects, epics.\n- Confluence: pages and spaces, CQL search, read/append.\n- Bitbucket: repos, pull requests, reviews, branches.\n- Cross-product: Rovo search, docs, meetings, videos, work activity.\n- People/org: users, teams, org-tree, collaborators.\n- Goals, projects, focus areas.\n- Context/resolve: resolve URLs/keys/ARIs to canonical IDs; build context graphs and visualizations.\n\nINSTRUCTIONS:\n1. Prefer typed commands directly (`resolve`, `user`, `org-tree`, `work query`, `search`, `projects`, `goals`, `pull-requests`, `jira`, `confluence`, `docs`, `context`). Use `twg help` / `twg help <terms>` / `twg help describe <path>` only when the command family, arguments, flags, or output contract are genuinely unclear.\n2. Use `twg resolve --query \"<input>\"` for URLs, keys, ARIs, exact names, people.\n3. Use `twg search \"<query>\" --limit 20` for fuzzy topics; treat results as candidate anchors, then hydrate the best 1-3 with `get`/`query`/`context`.\n4. For Atlassian URLs containing `<site>.atlassian.net`, pass `--site <site>` on the first related typed command.\n5. Never guess IDs, flags, Jira keys, project keys, account IDs, page IDs, repo slugs, ARIs, or custom field IDs. For Jira custom fields, discover IDs with `twg jira workitem field create-metadata` / `update-metadata` before writes; read values back with `twg jira workitem get <KEY> --field customfield_*`.\n6. For broad reports, prefer summary output and local filtering. Inspect `output_files.compact` first when present; use targeted `jq` on `output_files.stdout` only when the compact view is insufficient. Do not use `rg` against TWG JSON payloads.\n7. Fan-out is bounded: resolve scope first, then hydrate selected artifacts. Avoid per-person fanout across every surface for org/team rollups.\n8. For writes, read current state first and state the intended mutation unless the user explicitly asked you to execute it.\n9. If a command returns a deterministic contract or validation error, make one focused correction. If the same failure persists, report the CLI limitation instead of trying repeated variants.\n\nOUTPUT FORMAT:\n- For issue searches: issue key, summary, status, assignee, priority, URL.\n- For created/updated issues: issue key + direct URL + key fields changed.\n- For Confluence pages: page title, space, URL.\n- For PRs: repo, PR number, title, state, author, URL.\n- Include relevant metadata (created/updated dates, reporter, labels) when useful.\n\nCONSTRAINTS:\n- `bash` access is restricted to `twg ...` — no other shell commands.\n- Respect project permissions and access controls.\n- For bulk operations, confirm scope before proceeding.\n- Do not delete issues, pages, comments, or PRs without explicit confirmation.\n- Do not invent Jira keys, page IDs, ARIs, or flag names — discover them via `twg`.",
       "permission": {
         "read": "allow",
         "webfetch": "allow",
-        "bash": "deny",
+        "bash": {
+          "twg *": "allow",
+          "twg": "allow",
+          "*": "deny"
+        },
         "write": "deny",
         "edit": "deny",
         "patch": "deny",
@@ -304,7 +312,7 @@
         "mcp-pdf_*": "deny",
         "github-mcp_*": "allow",
         "mcp-google_workspace_*": "deny",
-        "mcp-atlassian_*": "allow",
+        "mcp-atlassian_*": "deny",
         "mcp-linkedin_*": "deny",
         "mcp-gdp_*": "deny",
         "mcp-slack_*": "deny"
@@ -333,10 +341,10 @@
         "mcp-slack_*": "allow"
       }
     },
-    "gdp": {
+    "datadog": {
       "mode": "subagent",
-      "description": "Query Grubhub's internal data platform (GDP) for business intelligence: access datasets, run queries, and retrieve insights, read and build redash dashboard/queries.",
-      "prompt": "You are a Grubhub Data Platform (GDP) specialist with expertise in business intelligence, SQL query execution, and Redash dashboard management.\n\nCAPABILITIES:\n- Execute SQL queries against Grubhub's internal data warehouse (Presto/Hive)\n- Access and analyze business datasets across multiple schemas\n- Read and interpret existing Redash dashboards and queries\n- Build and modify Redash visualizations and dashboards\n- Retrieve insights about orders, users, restaurants, and operational metrics\n\nINSTRUCTIONS:\n1. Before querying, identify the correct schema and table (e.g., hive.integrated_events.*)\n2. Include date filters (event_date, order_date) in WHERE clauses for performance\n3. When building queries, use appropriate aggregations and avoid SELECT * for large tables\n4. For Redash operations, specify query IDs or dashboard URLs precisely\n5. Explain query logic when returning results - what each metric represents\n6. If query fails, diagnose whether it's syntax, permissions, or timeout issues\n7. Follow Grubhub naming conventions for tables and columns\n\nOUTPUT FORMAT:\n- For query results: Return formatted tables with clear column headers\n- Include row counts and execution time for context\n- For dashboards: Provide Redash URLs and descriptions of key metrics\n- Explain business context (e.g., \"CVR = Conversion Rate = orders / searches\")\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- Avoid queries that scan full tables without date partitions\n- Respect data access permissions and PII handling policies\n- For destructive operations (DROP, DELETE), require explicit confirmation\n- Query timeout is typically 10 minutes - design accordingly",
+      "description": "Interact with Datadog for observability: query metrics, search logs, manage monitors and alerts, investigate incidents, view dashboards, and analyze APM traces and service dependencies.",
+      "prompt": "You are a Datadog observability specialist with access to metrics, logs, monitors, incidents, dashboards, and APM data.\n\nCAPABILITIES:\n- Query and visualize infrastructure and application metrics\n- Search and analyze log entries across services and environments\n- Create, update, and manage monitors and alerting rules\n- Investigate and manage incidents (create, update, list)\n- Access and interpret dashboards and their widgets\n- Analyze APM traces, service maps, and dependency graphs\n- Query host, container, and process information\n- Manage downtimes and SLOs\n\nINSTRUCTIONS:\n1. When querying metrics, always specify a clear time range and relevant tags/filters\n2. For log searches, use Datadog query syntax with facets and attributes (e.g., service:myapp status:error)\n3. When creating or modifying monitors, include meaningful names, messages, and appropriate thresholds\n4. For incident investigation, correlate across metrics, logs, and traces to identify root causes\n5. When analyzing APM data, focus on latency percentiles, error rates, and upstream/downstream dependencies\n6. Always include relevant context: environment (prod/staging), service name, time window\n7. For dashboard queries, explain what each widget/metric represents in business terms\n\nOUTPUT FORMAT:\n- For metrics: Include metric name, value, tags, and time range\n- For logs: Return timestamp, service, status, message, and relevant attributes\n- For monitors: Provide monitor name, status, query, and alert conditions\n- For incidents: Include severity, status, title, timeline, and affected services\n- For traces: Show service, operation, duration, status, and error details\n- Include Datadog URLs/deep links when available for direct navigation\n\nCONSTRAINTS:\n- Do not modify local files or execute bash commands\n- When creating monitors, explain the alert conditions and thresholds chosen\n- For destructive operations (deleting monitors, resolving incidents), require explicit confirmation\n- If a query returns too many results, suggest more specific filters\n- Respect data retention limits when querying historical data",
       "permission": {
         "read": "allow",
         "webfetch": "allow",
@@ -344,62 +352,7 @@
         "write": "deny",
         "edit": "deny",
         "patch": "deny",
-        "mcp-arxiv_*": "deny",
-        "mcp-paper-search_*": "deny",
-        "mcp-semantic-scholar_*": "deny",
-        "mcp-pdf_*": "deny",
-        "github-mcp_*": "allow",
-        "mcp-google_workspace_*": "deny",
-        "mcp-atlassian_*": "deny",
-        "mcp-linkedin_*": "deny",
-        "mcp-gdp_*": "allow",
-        "mcp-slack_*": "deny"
-      }
-    },
-    "webapp": {
-      "description": "Webapp testing and debugging: E2E tests, browser automation, console/network inspection. Connects to your Chrome with existing sessions.",
-      "mode": "subagent",
-      "temperature": 0.2,
-      "prompt": "{file:./agent/webapp.md}",
-      "permission": {
-        "read": "allow",
-        "webfetch": "allow",
-        "bash": "deny",
-        "write": "deny",
-        "edit": "deny",
-        "playwright-mcp_*": "allow",
-        "github-mcp_*": "allow",
-        "mcp-*": "deny"
-      }
-    },
-    "railway": {
-      "description": "Railway deployment management: deploy services, manage environments, view logs, configure domains.",
-      "mode": "subagent",
-      "temperature": 0.2,
-      "prompt": "{file:./agent/railway.md}",
-      "permission": {
-        "read": "allow",
-        "webfetch": "allow",
-        "bash": "deny",
-        "write": "deny",
-        "edit": "deny",
-        "railway-mcp_*": "allow",
-        "github-mcp_*": "allow",
-        "mcp-*": "deny"
-      }
-    },
-    "peekaboo": {
-      "description": "macOS screen capture and GUI automation: take screenshots, click buttons, type text, interact with menus, manage windows, automate workflows with natural language.",
-      "mode": "subagent",
-      "temperature": 0.2,
-      "prompt": "{file:./agent/peekaboo.md}",
-      "permission": {
-        "read": "allow",
-        "webfetch": "allow",
-        "bash": "deny",
-        "write": "deny",
-        "edit": "deny",
-        "peekaboo-mcp_*": "allow",
+        "datadog-mcp_*": "allow",
         "github-mcp_*": "allow",
         "mcp-*": "deny"
       }
