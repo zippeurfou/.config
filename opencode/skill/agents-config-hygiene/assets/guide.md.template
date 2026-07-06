@@ -1,0 +1,25 @@
+# <Topic> guide
+
+Read when <specific trigger condition: e.g., "the task involves writing a SQL
+query", "the task produces a chart", "touching a .qmd file">.
+
+## Workflow
+
+1. <Step 1 — what to do, why>.
+2. <Step 2 — what to do, why>.
+3. <Step 3 — what to do, why>.
+
+## Where things live
+
+- **<Artifact type>** → `<path>` (gitignored / committed).
+- **<Artifact type>** → `<path>`.
+
+## <Tool/MCP> cheat-sheet (optional)
+
+- `<tool name>` — <one-line: what it does>.
+- `<tool name>` — <one-line: what it does>.
+
+## Things to avoid
+
+- Don't <antipattern>. <Why it bites>.
+- Don't <antipattern>. <Why it bites>.

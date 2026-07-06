@@ -1,0 +1,33 @@
+# docs/INDEX.md — Annotated map
+
+Read this **before** opening individual guides. Each entry below tells you what's
+in a file and when to read it, so you don't have to open every link to find out.
+
+## Glossary
+
+- **`docs/glossary.md`** — <project>-specific acronyms and project codenames.
+  **Read when:** an unfamiliar uppercase term appears in a prompt, ticket, or
+  doc.
+
+## Guides
+
+- **`docs/guides/<name>.md`** — <one-paragraph: what's inside>.
+  **Read when:** <one-sentence trigger description>.
+
+- **`docs/guides/<name>.md>`** — <one-paragraph: what's inside>.
+  **Read when:** <one-sentence trigger description>.
+
+## Plans (active design docs)
+
+- **`docs/plans/`** — One file per design exercise. Naming:
+  `YYYY-MM-DD-<topic>-design.md`. The durable record of *why* a design landed
+  where it did.
+  **Read when:** revisiting a past decision or extending an in-flight design.
+
+## Conventions
+
+- New guides go under `docs/guides/` and **must** be added to this index with
+  a "Read when:" annotation.
+- Glossary additions follow the format already in `docs/glossary.md`.
+- Don't @-import these files into AGENTS.md — that defeats lazy-loading.
+  AGENTS.md should reference them by path with a short trigger description.

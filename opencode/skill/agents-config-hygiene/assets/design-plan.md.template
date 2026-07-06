@@ -1,0 +1,50 @@
+# <Topic> — YYYY-MM-DD
+
+## Why
+
+<2-5 sentences. What's broken, what triggered the design exercise, what
+constraints exist. Cite evidence: line counts, transcript signals, repo state.>
+
+## Principles guiding the design
+
+1. <Principle that drove decisions>.
+2. <Principle that drove decisions>.
+3. <Principle that drove decisions>.
+
+## Final state (file map)
+
+```
+<repo>/
+├── <new or changed file>      (purpose, target size if known)
+├── <new or changed file>      (purpose)
+└── <directory>/
+    ├── <file>                  (purpose)
+    └── <file>                  (purpose)
+```
+
+## Section-by-section content map
+
+### <File 1>
+
+<What blocks/sections it contains, where content came from, where content moved
+from if relocated.>
+
+### <File 2>
+
+<Same.>
+
+## Migration steps
+
+1. <Step>. <Verification command>.
+2. <Step>. <Verification command>.
+3. <Step>. <Verification command>.
+
+## What is intentionally NOT in scope
+
+- <Thing deferred and why>.
+- <Thing deferred and why>.
+
+## References
+
+- [<Source>](<url>)
+- [<Source>](<url>)

@@ -1,0 +1,83 @@
+# AGENTS.md — <project-name>
+
+This file layers on top of `~/.config/opencode/AGENTS.md` (personal, global).
+For human onboarding (install, structure, commit conventions) read
+[`README.md`](README.md). For project vocabulary, guides, and design plans
+read [`docs/INDEX.md`](docs/INDEX.md).
+
+<about_project>
+- <one-line: what this repo is>
+- <stack additions on top of personal defaults>
+- <repo layout summary: top-level dirs and what they hold>
+</about_project>
+
+<reading_order>
+1. This file (project overrides).
+2. [`docs/INDEX.md`](docs/INDEX.md) — annotated map of guides + glossary.
+3. [`docs/glossary.md`](docs/glossary.md) — for any unfamiliar uppercase term.
+4. The relevant guide under [`docs/guides/`](docs/guides/) — only when the task triggers it.
+5. [`README.md`](README.md) — only if the user asks about install / setup.
+</reading_order>
+
+<workflow_overrides>
+- <project-specific deviations from personal defaults — e.g., language version, package manager pin, framework conventions>
+- <when to use which tool / library / service>
+- <branch + commit conventions if they differ from defaults>
+</workflow_overrides>
+
+<verification>
+Before claiming a task is "done" or "ready for review", run the relevant subset
+and paste the output:
+
+```bash
+<formatter command>     # auto-format
+<linter command>        # lint; fix or justify every warning
+<test command>          # if the change touches tested code
+<build/render command>  # if applicable
+<pre-commit command>    # before any commit
+```
+
+A claim of "done" without evidence of verification is a failure mode.
+</verification>
+
+<acceptance_criteria_template>
+For any task expected to take more than ~5 minutes of work, restate it in this
+shape **before executing**, then check each item off as you complete it:
+
+```
+Goal:        <one sentence — what changes after this task ships>
+Inputs:      <files, data, prior decisions you'll consume>
+Constraints: <must-not-touch, deadlines, perf/cost limits>
+Done when:   <observable, verifiable conditions — bullet list>
+Out of scope: <what you're explicitly NOT doing>
+```
+
+If any field is unclear, ask one focused question rather than guessing. Opus
+4.7 is literal: vague criteria → vague results.
+</acceptance_criteria_template>
+
+<mcp_triggers>
+When to reach for which MCP. Always cite the source in your response.
+
+- **<MCP name>** — <one-line: when to use it>.
+- **<MCP name>** — <one-line: when to use it>.
+- ...
+
+If two MCPs would both work, pick <tiebreaker rule>.
+</mcp_triggers>
+
+<prohibitions>
+- Never <project-specific don't #1>.
+- Never <project-specific don't #2>.
+- Never push to a remote, force-push, or merge to `main` without explicit "push it" / "ship it".
+- Never invent file paths, table names, or API endpoints. Search first.
+</prohibitions>
+
+<lazy_guides>
+Pointers to material kept out of this file to save context. Read on demand.
+
+- [`docs/guides/<name>.md`](docs/guides/<name>.md) — read when <trigger>.
+- [`docs/glossary.md`](docs/glossary.md) — read when an unfamiliar term appears.
+- [`docs/plans/`](docs/plans/) — read when revisiting a past design decision.
+- [`.opencode/skills/<name>/`](.opencode/skills/<name>/) — applies when <trigger>.
+</lazy_guides>
