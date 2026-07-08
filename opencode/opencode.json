@@ -218,6 +218,32 @@
         "mcp-*": "deny"
       }
     },
+    "adversarial-reviewer": {
+      "description": "Adversarial design/plan reviewer - pressure-tests a proposed design, plan, or approach BEFORE it's built, hunting flaws, wrong assumptions, missing cases, hazards, and better alternatives. Read-only.",
+      "mode": "subagent",
+      "temperature": 0.1,
+      "prompt": "{file:./agent/adversarial-reviewer.md}",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "bash": {
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git status": "allow",
+          "git blame*": "allow",
+          "*": "deny"
+        },
+        "webfetch": "allow",
+        "websearch": "allow",
+        "edit": "deny",
+        "write": "deny",
+        "patch": "deny",
+        "task": "deny",
+        "mcp-*": "deny"
+      }
+    },
     "papers": {
       "description": "Subagent for academic research: search, retrieve, and summarize papers.",
       "mode": "subagent",
