@@ -34,13 +34,13 @@ Configs load from `~/.config/tmux/` (XDG) automatically — no `~/.tmux.conf` ne
    ```
 3. **Install plugins:** start `tmux`, press `prefix I` (or run
    `~/.config/tmux/plugins/tpm/bin/install_plugins`).
-4. **iTerm2 CMD layer:** symlink the dynamic profile, then select it:
+4. **iTerm2 CMD layer:** the repo-root `setup.sh` symlinks the dynamic profile for you; to do it by hand instead:
    ```sh
    mkdir -p ~/Library/Application\ Support/iTerm2/DynamicProfiles
    ln -sf ~/.config/tmux/iterm2-cmd-layer.json \
      ~/Library/Application\ Support/iTerm2/DynamicProfiles/tmux-cmd-layer.json
    ```
-   iTerm2 → Settings → Profiles → **“tmux (CMD layer)”** → *Other Actions ▸ Set as Default* → reopen iTerm2.
+   Then (always manual) iTerm2 → Settings → Profiles → **“tmux (CMD layer)”** → *Other Actions ▸ Set as Default* → reopen iTerm2.
 5. **Shell auto-attach** is already wired in `~/.config/zsh/rc.d/55-tmux.zsh` (opt out per shell: `NO_TMUX=1`).
 
 Plugins live under `plugins/` (git-ignored — reinstall anytime with `prefix I`).

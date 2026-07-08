@@ -207,6 +207,32 @@ else
     print_success "Atuin already configured"
 fi
 
+# Setup iTerm2 CMD layer (tmux Dynamic Profile)
+# Symlinks the dynamic profile so Cmd+<key> replays tmux prefix actions in iTerm2.
+# Selecting it as the default profile is a GUI step (see "Next steps" below).
+print_step "Setting up iTerm2 CMD layer profile..."
+PROFILE_SRC="$HOME/.config/tmux/iterm2-cmd-layer.json"
+DYNAMIC_PROFILES="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
+PROFILE_LINK="$DYNAMIC_PROFILES/tmux-cmd-layer.json"
+if [[ ! -f "$PROFILE_SRC" ]]; then
+    print_warning "tmux CMD-layer profile not found at $PROFILE_SRC, skipping..."
+else
+    mkdir -p "$DYNAMIC_PROFILES"
+    if [[ -L "$PROFILE_LINK" ]]; then
+        rm "$PROFILE_LINK"
+        ln -sf "$PROFILE_SRC" "$PROFILE_LINK"
+        print_success "Updated iTerm2 CMD-layer profile symlink"
+    elif [[ ! -e "$PROFILE_LINK" ]]; then
+        ln -sf "$PROFILE_SRC" "$PROFILE_LINK"
+        print_success "Created iTerm2 CMD-layer profile symlink"
+    else
+        print_warning "$PROFILE_LINK exists but is not a symlink. Backing up and creating symlink..."
+        mv "$PROFILE_LINK" "$PROFILE_LINK.backup.$(date +%Y%m%d_%H%M%S)"
+        ln -sf "$PROFILE_SRC" "$PROFILE_LINK"
+        print_success "Backed up old profile and created symlink"
+    fi
+fi
+
 echo ""
 echo -e "${GREEN}"
 echo "╔═══════════════════════════════════════╗"
@@ -219,6 +245,7 @@ echo "  1. Restart your terminal or run: source ~/.zshrc"
 echo "  2. Open Neovim and let plugins install: nvim"
 echo "  3. Configure Ghostty as your default terminal"
 echo "  4. Add your secrets to ~/.config/zsh/.zprivate"
+echo "  5. Activate the iTerm2 CMD layer: Settings > Profiles > 'tmux (CMD layer)' > Other Actions > Set as Default, then reopen iTerm2"
 echo ""
 print_warning "You may need to log out and back in for all changes to take effect."
 echo ""
