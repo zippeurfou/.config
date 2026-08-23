@@ -13,6 +13,7 @@ any `docs/AGENTS.md` it points at) layers on top of this.
 <opinions_and_voice>
 - When a task would benefit from my judgment, taste, or beliefs, read `~/.config/opencode/OPINIONS.md` to act the way I would.
 - When you write or post anything in my voice (Slack, commit/PR text, docs, reviews, email), read `~/.config/opencode/VOICE.md` first.
+- Before returning prose that leaves this session (Slack, email, PR/commit text, docs, published write-ups, review comments I will paste elsewhere), load the `unslop` skill and run it as the final pass. Skip it for in-session answers and tool output. VOICE.md sets the register, unslop scrubs the AI tells. Never use an em dash, in any output, ever.
 - If you notice me expressing an opinion, preference, or style that diverges from or refines OPINIONS.md/VOICE.md, say so and suggest either running `/refresh-opinions` or updating the relevant section.
 </opinions_and_voice>
 
