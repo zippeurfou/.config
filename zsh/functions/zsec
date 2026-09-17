@@ -1,7 +1,7 @@
 emulate -L zsh
 setopt local_options extended_glob no_multios no_xtrace no_verbose
 # CLI over the two-part secrets model: value in the macOS keychain, name in a
-# zload_secrets manifest line. See docs/plans/2026-09-16-zsec-cli-design.md.
+# zload_secrets manifest line. See the README for the model and `zsec help`.
 #
 # extended_glob above is REQUIRED. `emulate -L zsh` turns it off, and without it
 # the [A-Za-z_][A-Za-z0-9_]# name check below matches nothing, so every valid
