@@ -408,6 +408,183 @@ test_force_rotates_a_foreign_item() {
   assert_eq "17b value rotated" "newvalue" "$(kc_get "$TEST_SERVICE" SEVENTEEN_TOKEN)"
 }
 
+# ---------------------------------------------------------------- case 23
+test_rm_removes_both_halves() {
+  setup_fixtures; track TWENTYTHREE_TOKEN
+  printf 'gone' | zsec add TWENTYTHREE_TOKEN --service "$TEST_SERVICE" >/dev/null 2>&1
+  assert_exit_pipe "23a rm -f exits 0" 0 '' zsec rm TWENTYTHREE_TOKEN -f
+  assert_eq "23b keychain item gone" "" "$(kc_get "$TEST_SERVICE" TWENTYTHREE_TOKEN)"
+  assert_eq "23c manifest line gone" "" "$(grep '^sec|TWENTYTHREE_TOKEN' "$ZSEC_WORK_FILE")"
+}
+
+# ---------------------------------------------------------------- case 24
+# Without -f nothing may change, and the refusal doubles as the dry run.
+test_rm_without_force_is_a_no_op() {
+  setup_fixtures; track TWENTYFOUR_TOKEN
+  printf 'keepme' | zsec add TWENTYFOUR_TOKEN --service "$TEST_SERVICE" >/dev/null 2>&1
+  local before out code=0
+  before=$(md5 -q "$ZSEC_WORK_FILE")
+  out=$(zsec rm TWENTYFOUR_TOKEN 2>&1) || code=$?
+  assert_eq "24a exits 1 without -f"     "1" "$code"
+  assert_eq "24b manifest untouched"     "$before" "$(md5 -q "$ZSEC_WORK_FILE")"
+  assert_eq "24c keychain item untouched" "keepme" "$(kc_get "$TEST_SERVICE" TWENTYFOUR_TOKEN)"
+  assert_eq "24d names both halves"      "1" "$(print -r -- "$out" | grep -c 'keychain item')"
+  assert_no_leak "24e dry run never prints the value" "keepme" "$out"
+}
+
+# ---------------------------------------------------------------- case 25
+# THE case rm exists for. `add` rejects invalid names, so if rm shared that
+# validator it could not remove the MALFORMED entries doctor reports.
+test_rm_removes_a_malformed_name() {
+  setup_fixtures
+  print -r -- "sec|BAD-NAME|$TEST_SERVICE" >> "$ZSEC_WORK_FILE"
+  zsec rm BAD-NAME -f >/dev/null 2>&1
+  assert_eq "25 malformed line removed" "" "$(grep '^sec|BAD-NAME' "$ZSEC_WORK_FILE")"
+}
+
+# ---------------------------------------------------------------- case 26
+# A MISSING entry still unregisters, which is how you clean one up.
+test_rm_unregisters_when_the_item_is_already_gone() {
+  setup_fixtures
+  print -r -- "sec|GHOST_RM|$TEST_SERVICE" >> "$ZSEC_WORK_FILE"
+  assert_exit_pipe "26a exits 0 with no keychain item" 0 '' zsec rm GHOST_RM -f
+  assert_eq "26b line removed anyway" "" "$(grep '^sec|GHOST_RM' "$ZSEC_WORK_FILE")"
+}
+
+# ---------------------------------------------------------------- case 27
+test_rm_points_at_the_other_file() {
+  setup_fixtures
+  print -r -- "sec|ELSEWHERE_TOK|$TEST_SERVICE" >> "$ZSEC_PRIVATE_FILE"
+  local out code=0
+  out=$(zsec rm ELSEWHERE_TOK -f 2>&1) || code=$?
+  assert_eq "27a exits 1"              "1" "$code"
+  assert_eq "27b says to use -p"       "1" "$(print -r -- "$out" | grep -c '\-p')"
+  assert_eq "27c private file untouched" "1" "$(grep -c '^sec|ELSEWHERE_TOK' "$ZSEC_PRIVATE_FILE")"
+}
+
+# ---------------------------------------------------------------- case 28
+# MALFORMED and DUPLICATE used to print a consequence and no remedy, and `add`
+# refuses invalid names, so there was no supported fix at all.
+test_doctor_emits_a_runnable_rm_hint() {
+  setup_fixtures
+  print -r -- "sec|BAD-NAME|$TEST_SERVICE" >> "$ZSEC_WORK_FILE"
+  local out; out=$(zsec doctor 2>&1)
+  assert_eq "28 malformed row offers zsec rm" \
+    "1" "$(print -r -- "$out" | grep -c 'fix: zsec rm')"
+}
+
+# ---------------------------------------------------------------- case 29
+# rm used to skip the count and destroy the keychain half, THEN have the writer
+# refuse, leaving a misleading "delete this line by hand" that would silently
+# promote the other line's secret under the same name.
+test_rm_refuses_a_duplicated_name_before_deleting() {
+  setup_fixtures; track TWENTYNINE_TOKEN
+  kc_plant "$TEST_SERVICE" TWENTYNINE_TOKEN 'survivor'
+  print -r -- "sec|TWENTYNINE_TOKEN|$TEST_SERVICE" >> "$ZSEC_WORK_FILE"
+  print -r -- "sec|TWENTYNINE_TOKEN|other"        >> "$ZSEC_WORK_FILE"
+  # Pin the REASON. Exit 1 alone also passes when the subcommand does not exist.
+  assert_eq "29a refuses for the right reason" "1" \
+    "$(zsec rm TWENTYNINE_TOKEN -f 2>&1 | grep -c 'expected exactly 1')"
+  assert_eq "29b keychain item survived" \
+    "survivor" "$(security find-generic-password -s "$TEST_SERVICE" -a TWENTYNINE_TOKEN -w 2>/dev/null)"
+  assert_eq "29c both lines untouched" \
+    "2" "$(grep -c '^sec|TWENTYNINE_TOKEN' "$ZSEC_WORK_FILE")"
+}
+
+# ---------------------------------------------------------------- case 30
+# When both manifests name it, the keychain item is shared. Destroying it would
+# leave the other entry MISSING. Refusing would deadlock, since removing either
+# side is how you clean up a DUPLICATE, so rm unregisters one and keeps the item.
+test_rm_keeps_a_shared_keychain_item() {
+  setup_fixtures; track THIRTY_TOKEN
+  kc_plant "$TEST_SERVICE" THIRTY_TOKEN 'shared'
+  print -r -- "sec|THIRTY_TOKEN|$TEST_SERVICE" >> "$ZSEC_WORK_FILE"
+  print -r -- "sec|THIRTY_TOKEN|$TEST_SERVICE" >> "$ZSEC_PRIVATE_FILE"
+  assert_exit_pipe "30a exits 0" 0 '' zsec rm THIRTY_TOKEN -f
+  assert_eq "30b work line gone"    "" "$(grep '^sec|THIRTY_TOKEN' "$ZSEC_WORK_FILE")"
+  assert_eq "30c private line kept" "1" "$(grep -c '^sec|THIRTY_TOKEN' "$ZSEC_PRIVATE_FILE")"
+  assert_eq "30d keychain item kept" \
+    "shared" "$(security find-generic-password -s "$TEST_SERVICE" -a THIRTY_TOKEN -w 2>/dev/null)"
+}
+
+# ---------------------------------------------------------------- case 31
+# doctor reports MALFORMED for a name like -WEIRD and points at rm, so there has
+# to be a way to say "this is a name, not a flag".
+test_rm_accepts_a_dash_name_after_terminator() {
+  setup_fixtures
+  print -r -- "sec|-WEIRD|$TEST_SERVICE" >> "$ZSEC_WORK_FILE"
+  zsec rm -- -WEIRD -f >/dev/null 2>&1
+  assert_eq "31 dash-prefixed name removed" "" "$(grep -- '^sec|-WEIRD' "$ZSEC_WORK_FILE")"
+}
+
+# ---------------------------------------------------------------- case 32
+# Sharing is a property of the COORDINATES. Two names aliasing one item in the
+# SAME file were invisible to the old name-keyed check, so rm destroyed a value
+# that another live entry still resolved to, with a dry run that never said so.
+test_rm_keeps_an_item_two_names_alias() {
+  setup_fixtures; track aliastok
+  kc_plant "$TEST_SERVICE" aliastok 'aliased'
+  print -r -- "sec|ALIAS_A|$TEST_SERVICE|aliastok" >> "$ZSEC_WORK_FILE"
+  print -r -- "sec|ALIAS_B|$TEST_SERVICE|aliastok" >> "$ZSEC_WORK_FILE"
+  local out; out=$(zsec rm ALIAS_A 2>&1)
+  assert_eq "32a dry run names the other user" \
+    "1" "$(print -r -- "$out" | grep -c 'ALSO used by.*ALIAS_B')"
+  zsec rm ALIAS_A -f >/dev/null 2>&1
+  assert_eq "32b keychain item survived" \
+    "aliased" "$(security find-generic-password -s "$TEST_SERVICE" -a aliastok -w 2>/dev/null)"
+  assert_eq "32c ALIAS_B still registered" \
+    "1" "$(grep -c '^sec|ALIAS_B' "$ZSEC_WORK_FILE")"
+}
+
+# ---------------------------------------------------------------- case 33
+# The mirror image: one name at DIFFERENT coordinates in the two files looked
+# shared under the name-keyed check, so rm kept an item nothing pointed at.
+# doctor only walks manifest lines, so that orphan was undiscoverable.
+test_rm_removes_an_item_nothing_else_uses() {
+  setup_fixtures; track THIRTYTHREE_TOKEN
+  kc_plant "$TEST_SERVICE" THIRTYTHREE_TOKEN 'workside'
+  print -r -- "sec|THIRTYTHREE_TOKEN|$TEST_SERVICE"  >> "$ZSEC_WORK_FILE"
+  print -r -- "sec|THIRTYTHREE_TOKEN|somewhere-else" >> "$ZSEC_PRIVATE_FILE"
+  zsec rm THIRTYTHREE_TOKEN -f >/dev/null 2>&1
+  assert_eq "33 non-shared item removed, not orphaned" \
+    "" "$(security find-generic-password -s "$TEST_SERVICE" -a THIRTYTHREE_TOKEN -w 2>/dev/null)"
+}
+
+# ---------------------------------------------------------------- case 34
+# Case 28 only grepped for the string `fix: zsec rm`, which doctor prints
+# whether or not rm exists, so it passed with the subcommand deleted and never
+# caught that the hint did not actually run. This one EXECUTES it.
+test_doctor_hint_actually_runs() {
+  setup_fixtures
+  print -r -- "sec|BAD-NAME|$TEST_SERVICE" >> "$ZSEC_WORK_FILE"
+  print -r -- "sec|-WEIRD|$TEST_SERVICE"   >> "$ZSEC_WORK_FILE"
+  local hint
+  for want in BAD-NAME -WEIRD; do
+    hint=$(zsec doctor 2>&1 | grep -F -- "fix: zsec rm" | head -1 | sed 's/.*fix: //')
+    eval "$hint" >/dev/null 2>&1
+  done
+  # grep -F, so no ^ anchor: with -F a leading ^ is a literal character and the
+  # pattern can never match, which made this assertion unfailable.
+  assert_eq "34a pasted hint removed the bad name" "" "$(grep -F -- 'sec|BAD-NAME' "$ZSEC_WORK_FILE")"
+  assert_eq "34b pasted hint removed the dash name" "" "$(grep -F -- 'sec|-WEIRD' "$ZSEC_WORK_FILE")"
+}
+
+# ---------------------------------------------------------------- case 35
+# Every fixture uses a QUOTED heredoc, so rm's $USER-expansion branch had never
+# run under test. The live .zprivate is UNQUOTED and holds two $USER lines, so
+# that branch has only ever executed against real credentials.
+test_rm_expands_user_in_an_unquoted_heredoc() {
+  setup_fixtures; track "$USER"
+  kc_plant "$TEST_SERVICE" "$USER" 'userscoped'
+  print -r -- "zload_secrets <<SECRETS"              >  "$ZSEC_PRIVATE_FILE"
+  print -r -- "sec|USERTOK|$TEST_SERVICE|\$USER"     >> "$ZSEC_PRIVATE_FILE"
+  print -r -- "SECRETS"                              >> "$ZSEC_PRIVATE_FILE"
+  zsec rm USERTOK -p -f >/dev/null 2>&1
+  assert_eq "35a resolved \$USER and removed the item" \
+    "" "$(security find-generic-password -s "$TEST_SERVICE" -a "$USER" -w 2>/dev/null)"
+  assert_eq "35b line removed" "" "$(grep '^sec|USERTOK' "$ZSEC_PRIVATE_FILE")"
+}
+
 print -r -- "zsec tests"
 test_add_creates_both_halves
 test_add_is_idempotent
@@ -431,6 +608,19 @@ test_doctor_flags_a_malformed_name
 test_xtrace_does_not_leak_values
 test_zsec_add_xtrace_does_not_leak
 test_force_rotates_a_foreign_item
+test_rm_removes_both_halves
+test_rm_without_force_is_a_no_op
+test_rm_removes_a_malformed_name
+test_rm_unregisters_when_the_item_is_already_gone
+test_rm_points_at_the_other_file
+test_doctor_emits_a_runnable_rm_hint
+test_rm_refuses_a_duplicated_name_before_deleting
+test_rm_keeps_a_shared_keychain_item
+test_rm_accepts_a_dash_name_after_terminator
+test_rm_keeps_an_item_two_names_alias
+test_rm_removes_an_item_nothing_else_uses
+test_doctor_hint_actually_runs
+test_rm_expands_user_in_an_unquoted_heredoc
 
 print -r -- ""
 print -r -- "$PASS passed, $FAIL failed"

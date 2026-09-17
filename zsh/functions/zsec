@@ -49,6 +49,110 @@ _zsec_spec_line() {
   else                                                 print -r -- "sec|$var|$svc|$acct"; fi
 }
 
+# Locate the manifest line for VAR in FILE. Prints nothing when absent.
+# Exact field comparison, never a regex: rm accepts names containing regex
+# metacharacters, and a regex lookup for `a.b.c` matches a stored `a.b*c`.
+# The ("" x) casts force STRING comparison. awk treats both fields and ENVIRON
+# entries as strnum, so a bare == matches a stored `7` against `007` or ` 7`.
+# Measured, both of those.
+_zsec_manifest_find() {
+  ZV="$2" awk -F'|' '$1=="sec" && (""$2)==(""ENVIRON["ZV"]) {print; exit}' "$1" 2>/dev/null
+}
+
+_zsec_manifest_count() {
+  ZV="$2" awk -F'|' '$1=="sec" && (""$2)==(""ENVIRON["ZV"]) {n++} END {print n+0}' "$1" 2>/dev/null
+}
+
+# The single writer for every manifest mutation. Extracted from _zsec_add so rm
+# cannot drift from it: the collision-safe backup, the awkrc gate before mv, and
+# the post-conditions each closed a real bug, and duplicating them is exactly
+# how they come back.
+#   OLD empty, NEW set   -> insert NEW before the SECRETS terminator
+#   OLD set,   NEW set   -> replace OLD with NEW, in place
+#   OLD set,   NEW empty -> delete OLD
+_zsec_manifest_write() {
+  local file="$1" var="$2" old="$3" new="$4"
+
+  # The mode is inferred from two independent emptiness tests, which is four
+  # states for three modes. The fourth used to take the INSERT branch with an
+  # empty line, putting a blank line inside the heredoc and returning 0. rm
+  # reaches it whenever its lookup misses, which is the likeliest rm bug.
+  [[ -n "$old" || -n "$new" ]] || {
+    _zsec_die "internal error: manifest write called with neither an old nor a new line."
+    return 1; }
+
+  local want=1
+  [[ -z "$new" ]] && want=0
+
+  # Only an INSERT needs a heredoc block to aim at. A rewrite or delete acts on
+  # a line that is already there, wherever it sits.
+  [[ -n "$old" ]] || grep -q '^zload_secrets <<' "$file" 2>/dev/null || {
+    _zsec_die "$file has no 'zload_secrets <<' block, so there is nowhere to add a line."
+    return 1; }
+
+  # Preconditions, before anything is touched. A delete whose post-condition is
+  # only "no line names VAR" is a negative claim that doing nothing satisfies,
+  # so the work has to be proven up front instead.
+  local before; before=$(_zsec_manifest_count "$file" "$var")
+  if [[ -n "$old" ]]; then
+    # Ties OLD to VAR, so a caller cannot delete a line belonging to something
+    # else and still pass the count check.
+    [[ "$(_zsec_manifest_find "$file" "$var")" == "$old" ]] || {
+      _zsec_die "the line given for $var does not match the one in ${file:t}." \
+                "Nothing was changed."
+      return 1; }
+  fi
+  if (( want == 0 && before != 1 )); then
+    _zsec_die "$file has $before lines for $var, expected exactly 1 to delete." \
+              "Nothing was changed."
+    return 1
+  fi
+
+  # Second granularity collides if two writes land in the same second.
+  local bak="$file.bak-$(date +%Y%m%dT%H%M%S)" n=1
+  while [[ -e "$bak" ]]; do bak="$file.bak-$(date +%Y%m%dT%H%M%S)-$n"; (( n++ )); done
+  cp -p "$file" "$bak" || {
+    _zsec_die "could not back up $file, so refusing to modify it."; return 1; }
+
+  local tmp awkrc=0
+  tmp=$(mktemp) || { _zsec_die "mktemp failed. $file was not modified."; return 1; }
+
+  # ENVIRON, not `awk -v`: the -v form expands backslash escapes, so a service
+  # containing a literal \t would be written as a real tab.
+  if [[ -z "$old" ]]; then
+    ZSEC_NEW="$new" awk \
+      '/^SECRETS$/ && !d { print ENVIRON["ZSEC_NEW"]; d=1 } { print }' \
+      "$file" > "$tmp" || awkrc=$?
+  else
+    ZSEC_OLD="$old" ZSEC_NEW="$new" awk \
+      '$0 == ENVIRON["ZSEC_OLD"] && !d { d=1; if (ENVIRON["ZSEC_NEW"] != "") print ENVIRON["ZSEC_NEW"]; next } { print }' \
+      "$file" > "$tmp" || awkrc=$?
+  fi
+
+  # awk's status must gate the mv, or a failing awk leaves a truncated $tmp that
+  # then clobbers the manifest.
+  if (( awkrc != 0 )) || ! mv "$tmp" "$file"; then
+    rm -f "$tmp"
+    _zsec_die "failed to update $file. A backup is at $bak."
+    return 1
+  fi
+
+  # awk exits 0 even when it matched nothing, so the count has to be checked.
+  local cnt; cnt=$(_zsec_manifest_count "$file" "$var")
+  if (( cnt != want )); then
+    _zsec_die "$file now has $cnt lines for $var, expected $want." \
+              "A backup is at $bak. Fix the manifest by hand."
+    return 1
+  fi
+  # Count alone would accept one line with the WRONG content.
+  if [[ -n "$new" ]] && ! grep -qxF -- "$new" "$file"; then
+    _zsec_die "$file has one line for $var but it is not the intended one." \
+              "A backup is at $bak." \
+              "${old:+    was: $old}" "    now: $new"
+    return 1
+  fi
+}
+
 _zsec_add() {
   local var="" svc=system acct="" clip=0 personal=0 force=0
   while (( $# )); do
@@ -104,7 +208,7 @@ _zsec_add() {
   local other
   if (( personal )); then other="${ZSEC_WORK_FILE:-$ZDOTDIR/.zwork}"
   else                    other="${ZSEC_PRIVATE_FILE:-$ZDOTDIR/.zprivate}"; fi
-  if grep -qE "^sec\|$var(\||$)" "$other" 2>/dev/null; then
+  if [[ -n "$(_zsec_manifest_find "$other" "$var")" ]]; then
     _zsec_die "$var is already declared in ${other:t}." \
               "Two manifests naming one variable is the DUPLICATE state doctor" \
               "reports, and the file that loads second wins. Remove that line first."
@@ -187,83 +291,181 @@ _zsec_add() {
   # grep -E, not plain grep. BSD BRE alternation is not portable here, and the
   # (\||$) anchor is what stops sec|FOO from matching a line for sec|FOO_BAR.
   local existing action
-  existing=$(grep -E "^sec\|$var(\||$)" "$file" 2>/dev/null | head -1)
+  existing=$(_zsec_manifest_find "$file" "$var")
   if [[ "$existing" == "$line" ]]; then
     action="already registered in ${file:t}, unchanged"
   else
-    # Only the INSERT path needs a heredoc block to aim at. A rewrite replaces
-    # a line that is already there, wherever it sits.
-    [[ -n "$existing" ]] || grep -q '^zload_secrets <<' "$file" 2>/dev/null || {
-      _zsec_die "$file has no 'zload_secrets <<' block, so there is nowhere to add the line." \
-                "The keychain item WAS written. Add this line yourself:" \
-                "    $line"
+    _zsec_manifest_write "$file" "$var" "$existing" "$line" || {
+      print -ru2 -- "      The keychain item WAS written. Fix this line yourself:"
+      print -ru2 -- "          $line"
       return 1; }
-    # Timestamps are second-granularity, so two adds in the same second would
-    # overwrite one backup. Bump a suffix until the name is free.
-    local bak="$file.bak-$(date +%Y%m%dT%H%M%S)" n=1
-    while [[ -e "$bak" ]]; do bak="$file.bak-$(date +%Y%m%dT%H%M%S)-$n"; (( n++ )); done
-    cp -p "$file" "$bak" || {
-      _zsec_die "could not back up $file, so refusing to modify it." \
-                "The keychain item WAS written. Add this line yourself:" "    $line"
-      return 1; }
-    local tmp awkrc=0; tmp=$(mktemp) || {
-      _zsec_die "mktemp failed. The keychain item WAS written." \
-                "Add this line yourself:" "    $line"
-      return 1; }
-    # ENVIRON, not `awk -v`. The -v form processes backslash escapes, so a
-    # service containing a literal \t would be written as a real tab.
     if [[ -n "$existing" ]]; then
-      ZSEC_OLD="$existing" ZSEC_NEW="$line" awk \
-        '$0 == ENVIRON["ZSEC_OLD"] && !d { print ENVIRON["ZSEC_NEW"]; d=1; next } { print }' \
-        "$file" > "$tmp" || awkrc=$?
       action="rewrote the line in ${file:t}
     was: $existing
     now: $line"
     else
-      ZSEC_INS="$line" awk '/^SECRETS$/ && !ins { print ENVIRON["ZSEC_INS"]; ins=1 } { print }' \
-        "$file" > "$tmp" || awkrc=$?
       action="registered in ${file:t} as: $line"
     fi
-    # awk's status must gate the mv. Without it a failing awk leaves a truncated
-    # $tmp that then clobbers the manifest.
-    if (( awkrc != 0 )) || ! mv "$tmp" "$file"; then
-      rm -f "$tmp"
-      _zsec_die "failed to update $file. The keychain item WAS written." \
-                "Add this line yourself:" "    $line"
-      return 1
-    fi
-    # awk exits 0 even when it matched nothing, so a block terminated with
-    # anything other than SECRETS, or never terminated, would copy the file
-    # through unchanged and report success. Confirm the line actually landed.
-    # Presence of the new line is not enough. The rewrite replaces only the
-    # FIRST match (awk's !d), so a second stale line for the same name would
-    # survive and race it at startup. Assert the count, which is the invariant
-    # test 18c states but the code did not enforce.
-    local cnt; cnt=$(grep -cE "^sec\|$var(\||$)" "$file" 2>/dev/null)
-    if (( cnt != 1 )); then
-      _zsec_die "$file now has $cnt lines for $var, expected exactly 1." \
-                "The keychain item WAS written. A backup is at $bak." \
-                "Fix the manifest by hand so only this line remains:" "    $line"
-      return 1
-    fi
-    grep -qxF -- "$line" "$file" || {
-      if [[ -n "$existing" ]]; then
-        _zsec_die "could not rewrite the manifest line in $file." \
-                  "The keychain item WAS written. A backup is at $bak." \
-                  "Replace this line yourself:" \
-                  "    was: $existing" "    now: $line"
-      else
-        _zsec_die "could not place the manifest line in $file." \
-                  "The 'zload_secrets <<' block has no SECRETS terminator, so there" \
-                  "is nowhere to insert it. The keychain item WAS written." \
-                  "Add this line yourself:" "    $line"
-      fi
-      return 1; }
   fi
 
   print -r -- "$( (( existed )) && print -n updated || print -n created ) $var in the keychain (service: $svc)"
   print -r -- "$action"
   print -r -- "not in this shell yet. open a new shell, or: source $file"
+}
+
+# Which OTHER manifest entries resolve to the same (service, account)?
+# Sharing is a property of the COORDINATES, not the name. Keying on the name
+# got it wrong in both directions: two names aliasing one item in the SAME file
+# were invisible, so rm destroyed a value another live entry still needed; and
+# one name at DIFFERENT coordinates in the two files looked shared, so rm kept
+# an item nothing pointed at, which doctor is structurally blind to.
+# Reuses _zsec_each_entry so the $USER-per-heredoc-quoting rule stays in one place.
+_zsec_coord_user_row() {
+  local var="$1" svc="$2" acct="$3" n="$4" label="$5"
+  [[ "$label" == "$_zsec_cu_label" && "$var" == "$_zsec_cu_var" ]] && return
+  [[ "$svc" == "$_zsec_cu_svc" && "$acct" == "$_zsec_cu_acct" ]] \
+    && _zsec_cu_hits+=("${label}: ${var}")
+  return 0
+}
+
+_zsec_coord_users() {
+  typeset -g _zsec_cu_svc="$1" _zsec_cu_acct="$2" _zsec_cu_label="$3" _zsec_cu_var="$4"
+  typeset -ga _zsec_cu_hits=()
+  local f
+  for f in "${ZSEC_WORK_FILE:-$ZDOTDIR/.zwork}" "${ZSEC_PRIVATE_FILE:-$ZDOTDIR/.zprivate}"; do
+    _zsec_each_entry "$f" _zsec_coord_user_row "${f:t}"
+  done
+  (( $#_zsec_cu_hits )) && print -rl -- $_zsec_cu_hits
+  unset _zsec_cu_svc _zsec_cu_acct _zsec_cu_label _zsec_cu_var _zsec_cu_hits
+  return 0
+}
+
+_zsec_rm() {
+  local var="" personal=0 force=0
+  while (( $# )); do
+    case "$1" in
+      -p|--personal) personal=1 ;;
+      -f|--force)    force=1 ;;
+      -h|--help)     _zsec_help_rm; return 0 ;;
+      # doctor reports MALFORMED for a name like -WEIRD, and rm is the advertised
+      # cleanup, so there has to be a way to say "this is a name, not a flag".
+      --)            shift; [[ -n "$var" ]] && { _zsec_die "unexpected argument '$1'."; return 1; }
+                     var="$1" ;;
+      -*)            _zsec_die "unknown option '$1'. Try: zsec rm -h"; return 1 ;;
+      *)             if [[ -z "$var" ]]; then var="$1"
+                     else _zsec_die "unexpected argument '$1'. Try: zsec rm -h"; return 1; fi ;;
+    esac
+    shift
+  done
+  [[ -n "$var" ]] || { _zsec_die "rm needs a variable name. Try: zsec rm -h"; return 1; }
+
+  # Deliberately NO identifier validation here. `add` rejects invalid names, so
+  # sharing that check would make rm unable to remove exactly the MALFORMED
+  # entries doctor reports, which is half the reason rm exists.
+
+  local work="${ZSEC_WORK_FILE:-$ZDOTDIR/.zwork}" priv="${ZSEC_PRIVATE_FILE:-$ZDOTDIR/.zprivate}"
+  local file other
+  if (( personal )); then file="$priv"; other="$work"
+  else                    file="$work"; other="$priv"; fi
+
+  # Use the SHARED finder. It does exact field comparison with forced string
+  # casts, which matters here twice: rm accepts names holding regex
+  # metacharacters (a regex lookup for `a.b.c` matches a stored `a.b*c`), and
+  # awk's strnum rules would otherwise match a stored `7` against `007`.
+  # Rolling a local lookup here is how the two halves drift apart.
+  local line; line=$(_zsec_manifest_find "$file" "$var")
+  if [[ -z "$line" ]]; then
+    if [[ -n "$(_zsec_manifest_find "$other" "$var")" ]]; then
+      _zsec_die "$var is not in ${file:t}, but it IS in ${other:t}." \
+                "Re-run $( (( personal )) && print -n 'without -p' || print -n 'with -p' )."
+    else
+      _zsec_die "$var is not registered in ${file:t} or ${other:t}."
+    fi
+    return 1
+  fi
+
+  local kind v svc acct
+  IFS='|' read -r kind v svc acct <<< "$line"
+  svc="${svc:-system}"; acct="${acct:-$var}"
+  # Same rule _zsec_each_entry uses: only an UNQUOTED heredoc has had $USER
+  # expanded by the shell before zload_secrets saw it.
+  grep -q "^zload_secrets <<'" "$file" 2>/dev/null || {
+    svc="${svc//\$USER/$USER}"; acct="${acct//\$USER/$USER}"; }
+
+  # Count BEFORE anything irreversible. The writer refuses a delete unless
+  # exactly one line names VAR, but that refusal lands after the keychain item
+  # is already gone, leaving a destroyed value and a misleading "delete this
+  # line by hand" that would silently promote the other line's secret.
+  local n; n=$(_zsec_manifest_count "$file" "$var")
+  if (( n != 1 )); then
+    _zsec_die "$var has $n lines in ${file:t}, expected exactly 1." \
+              "Remove the extras by hand first. zsec will not guess which to keep."
+    return 1
+  fi
+
+
+  # 44 is errSecItemNotFound. Any OTHER non-zero is "unknown", not "absent": a
+  # locked keychain or a denied authorization would otherwise unregister a live
+  # item and report the opposite. doctor was hardened away from exactly this.
+  local -a sharers
+  sharers=(${(f)"$(_zsec_coord_users "$svc" "$acct" "${file:t}" "$var")"})
+
+  local present=0 findrc=0
+  security find-generic-password -s "$svc" -a "$acct" >/dev/null 2>&1 || findrc=$?
+  if (( findrc == 0 )); then present=1
+  elif (( findrc != 44 )); then
+    _zsec_die "could not determine whether $var exists in the keychain (rc=$findrc)." \
+              "Authorization denied, or the keychain is locked. Nothing was changed."
+    return 1
+  fi
+
+  if (( ! force )); then
+    print -ru2 -- "zsec: would remove $var"
+    if (( present )); then
+      print -ru2 -- "      keychain item  service=$svc account=$acct"
+    else
+      print -ru2 -- "      keychain item  none, already gone"
+    fi
+    print -ru2 -- "      manifest line  ${file:t}: $line"
+    if (( $#sharers )); then
+      local h
+      for h in $sharers; do print -ru2 -- "      ALSO used by   $h"; done
+      print -ru2 -- "      so only the ${file:t} line goes. The keychain item stays, or those"
+      print -ru2 -- "      entries would break."
+    fi
+    print -ru2 -- "      re-run with -f to do it.$( (( ! $#sharers && present )) && print -n ' The keychain value is not recoverable.')"
+    return 1
+  fi
+
+  # Keychain FIRST, deliberately. If the manifest write then fails you are left
+  # with a MISSING entry, which doctor reports and `zsec add -c -f` repairs. The
+  # other order leaves an orphan keychain item that doctor cannot see at all.
+  local deleted=0
+  if (( present && $#sharers )); then
+    print -r -- "kept the keychain item, still used by: ${(j:, :)sharers}"
+  elif (( present )); then
+    deleted=1
+    security delete-generic-password -s "$svc" -a "$acct" >/dev/null 2>&1 || {
+      _zsec_die "could not remove $var from the keychain (service: $svc)." \
+                "The manifest was left alone."
+      return 1; }
+  fi
+  _zsec_manifest_write "$file" "$var" "$line" "" || {
+    # Reached from three states and the old wording was true in only one.
+    if (( deleted )); then
+      print -ru2 -- "      The keychain item is GONE but its line remains. Delete it by hand:"
+    else
+      print -ru2 -- "      The keychain item was NOT touched. The line remains:"
+    fi
+    print -ru2 -- "          $line"
+    return 1; }
+
+  if (( deleted )); then
+    print -r -- "removed $var from the keychain (service: $svc)"
+  elif (( ! present )); then
+    print -r -- "$var had no keychain item (service: $svc), nothing to remove there"
+  fi
+  print -r -- "removed the line from ${file:t}"
 }
 
 _zsec_help() {
@@ -284,6 +486,7 @@ HOW IT WORKS
 USAGE
   zsec add VAR [options]   store a value and register the name
   zsec ls [-p]             list registered secrets and their status
+  zsec rm VAR [options]    remove a secret, dry run unless you pass -f
   zsec doctor              check that every name resolves, exit 1 if not
   zsec help                this text
 
@@ -318,6 +521,9 @@ EXAMPLES
   zsec add DD_API_KEY -c --service datadog
   zsec add ANTHROPIC_API_KEY -c -p --service "Claude Code" --account "$USER"
 
+  # Get rid of one. Without -f it only tells you what would go. See zsec rm -h.
+  zsec rm OLD_TOKEN -f
+
   # What is registered, and does it resolve?
   zsec ls
   zsec doctor
@@ -340,6 +546,50 @@ NOTES
   item that got in by another route.
   doctor cannot find keychain items that have no manifest line. Listing the
   keychain prompts for auth on every item.
+EOF
+}
+
+_zsec_help_rm() {
+  cat <<'EOF'
+zsec rm VAR [-p] [-f]    remove a secret: both the keychain item and the name
+
+OPTIONS
+  -p, --personal   look in .zprivate instead of .zwork
+  -f, --force      actually do it
+  --               the next argument is a name, not an option
+
+  Without -f, rm prints exactly what it would remove, changes nothing and
+  exits 1. That refusal is the dry run, and it is the only confirmation step
+  there is. Read it, because the keychain value is not recoverable.
+
+  rm accepts names that `add` would reject, which is how you clear a
+  MALFORMED entry that `zsec doctor` is complaining about. A name starting
+  with a dash needs -- in front of it, or rm reads it as an option.
+
+  An entry whose keychain item is already gone still unregisters, so this is
+  also how you drop a MISSING entry you no longer want.
+
+  Two cases where rm does less than you asked, and says so when it happens.
+  If the other manifest declares VAR too, the keychain item is shared, so
+  only the line in the file you targeted goes and the item stays. If the file
+  you targeted holds more than one line for VAR, rm changes nothing at all
+  and leaves you to pick which line to delete.
+
+EXAMPLES
+  # See what would go, without touching anything.
+  zsec rm OLD_TOKEN
+
+  # Do it.
+  zsec rm OLD_TOKEN -f
+
+  # A personal secret.
+  zsec rm RAILWAY_TOKEN -p -f
+
+  # Clear a manifest line whose name is not a valid variable.
+  zsec rm BAD-NAME -f
+
+  # Same, when the name starts with a dash.
+  zsec rm -- -WEIRD -f
 EOF
 }
 
@@ -461,6 +711,41 @@ _zsec_fix_hint() {
   print -r -- "$h"
 }
 
+# Remediation for MALFORMED and DUPLICATE, the two verdicts `add` cannot repair:
+# it refuses invalid names outright, and it refuses to create a second
+# declaration of a name the other manifest already has. rm is the only fix, so
+# doctor has to hand over a line that actually runs when pasted.
+#
+# `--` UNCONDITIONALLY, even though a valid identifier does not need it. doctor
+# reports MALFORMED for a name like -WEIRD, and `zsec rm -WEIRD -f` dies on
+# "unknown option '-WEIRD'" with the line still in place. Measured. Emitting the
+# terminator only for dash-prefixed names also works today, but it puts a second
+# copy of rm's "what counts as a flag" rule here, where the two can drift apart.
+# The name is arbitrary and already known-bad, so do not condition on its shape.
+#
+# ${(q)} on top of that, because a MALFORMED name can hold spaces, quotes or
+# glob characters that the shell would eat before rm ever saw them. `--` stops
+# the name being read as an option; ${(q)} stops it being read as syntax.
+#
+# The -p test keys off the label doctor already prints for the row, which is
+# ${file:t}. One rm call is the whole fix for a cross-file DUPLICATE: dropping
+# the second declaration leaves the first one and its keychain item intact.
+# Returns nothing when rm genuinely cannot fix the entry, because a hint that
+# dies when pasted is worse than none. Empty names are rejected by rm's own
+# arity check, and a same-file duplicate is refused by its count precondition.
+_zsec_rm_hint() {
+  local var="$1" label="$2" samefile="${3:-0}"
+  # rm's own arity check rejects an empty name, and its count precondition
+  # refuses a name with two lines in one file. Emitting `zsec rm -- '' -f` or a
+  # command that is guaranteed to refuse is worse than emitting nothing.
+  [[ -z "$var" ]] && { print -r -- "remove the line by hand, zsec rm cannot name an empty variable"; return 0 }
+  (( samefile )) && { print -r -- "remove one of the two lines by hand, zsec rm refuses an ambiguous name"; return 0 }
+  # Always `--`: ${(q)} of -WEIRD is still -WEIRD, which rm rejects as an option.
+  local h="zsec rm -- ${(q)var}"
+  [[ "$label" == .zprivate ]] && h+=" -p"
+  print -r -- "$h -f"
+}
+
 # Top level, same reason as _zsec_ls_row. The counters stay global because
 # they accumulate across calls, which is what an accumulator is for. The file
 # label does not, so it arrives as $5.
@@ -477,12 +762,15 @@ _zsec_doctor_row() {
     printf '  %-10s %-30s not a valid shell variable name, %s:%s\n' \
       MALFORMED "${var:-(empty)}" "$label" "$n"
     printf '  %-10s %-30s startup aborts here and loses every secret after it\n' '' ''
+    printf '  %-10s %-30s fix: %s\n' '' '' "$(_zsec_rm_hint "$var" "$label")"
     return
   fi
   if [[ -n "${_zsec_seen[$var]:-}" ]]; then
     (( _zsec_dup++ ))
     printf '  %-10s %-30s also declared at %s, %s wins\n' \
       DUPLICATE "$var" "${_zsec_seen[$var]}" "$label"
+    printf '  %-10s %-30s fix: %s\n' '' '' \
+      "$(_zsec_rm_hint "$var" "$label" "$( [[ "${_zsec_seen[$var]%%:*}" == "$label" ]] && print -n 1 || print -n 0 )")"
     return
   fi
   _zsec_seen[$var]="$label:$n"
@@ -560,10 +848,11 @@ _zsec_doctor() {
 case "${1:-}" in
   add)            shift; _zsec_add    "$@" ;;
   ls)             shift; _zsec_ls     "$@" ;;
+  rm)             shift; _zsec_rm     "$@" ;;
   doctor)         shift; _zsec_doctor "$@" ;;
   help|-h|--help) _zsec_help ;;
-  "")             print -ru2 -- "usage: zsec {add|ls|doctor|help}   run 'zsec help' for examples"; return 1 ;;
+  "")             print -ru2 -- "usage: zsec {add|ls|rm|doctor|help}   run 'zsec help' for examples"; return 1 ;;
   *)              print -ru2 -- "zsec: unknown subcommand '$1'"
-                  print -ru2 -- "usage: zsec {add|ls|doctor|help}   run 'zsec help' for examples"
+                  print -ru2 -- "usage: zsec {add|ls|rm|doctor|help}   run 'zsec help' for examples"
                   return 1 ;;
 esac
