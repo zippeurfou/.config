@@ -1,0 +1,569 @@
+emulate -L zsh
+setopt local_options extended_glob no_multios no_xtrace no_verbose
+# CLI over the two-part secrets model: value in the macOS keychain, name in a
+# zload_secrets manifest line. See docs/plans/2026-09-16-zsec-cli-design.md.
+#
+# extended_glob above is REQUIRED. `emulate -L zsh` turns it off, and without it
+# the [A-Za-z_][A-Za-z0-9_]# name check below matches nothing, so every valid
+# variable name gets rejected. Verified on zsh 5.9.
+# no_xtrace is required too. `emulate -L zsh` does NOT reset xtrace, so under
+# `zsh -x` every secret value appears in the trace. Verified. It is scoped by
+# local_options, so tracing resumes normally once zsec returns.
+# no_multios is also required. With MULTIOS on (the zsh default), the
+# `cmd 2>&1 >/dev/null | grep` idiom in the doctor hex check TEES stdout into
+# the pipe instead of discarding it, so the grep sees the whole attribute dump.
+# The option has to be set where the redirection is WRITTEN, which is here.
+#
+# Secrets are written with `keyring set` over stdin and read back with
+# `keyring get`. Two rules are in tension here and both are load-bearing.
+#
+# 1. Never put a secret in argv. `security add-generic-password -w "$v"` would.
+#    This machine runs an EDR agent registered as an Endpoint Security
+#    extension, and auditd is running, so argv is captured on every exec and
+#    shipped off-host with months of retention. That is a disclosure, not a
+#    theoretical race. `security ... -w` cannot read from stdin (tested: it
+#    ignores the pipe, and over a pty it stores an empty value), so writing with
+#    `security` at all means leaking to telemetry.
+# 2. Read with whatever wrote it. A keychain item's ACL names the binary allowed
+#    to read its data, so reading a keyring-written item with `security` raises
+#    a GUI dialog. That is why the readback below uses `keyring get` and not
+#    `security -w`, even though `security -w` is what zload_secrets will use.
+#
+# The residual cost is one dialog per secret, the first time zload_secrets reads
+# it. Always Allow makes that permanent. This was reverted once already; if you
+# are about to "simplify" it to a single binary, re-read rule 1.
+
+_zsec_die() {
+  local first=1 line
+  for line in "$@"; do
+    if (( first )); then print -ru2 -- "zsec: $line"; first=0
+    else                 print -ru2 -- "      $line"; fi
+  done
+  return 1
+}
+
+_zsec_spec_line() {
+  local var="$1" svc="$2" acct="$3"
+  if [[ "$svc" == system && "$acct" == "$var" ]]; then print -r -- "sec|$var"
+  elif [[ "$acct" == "$var" ]];                   then print -r -- "sec|$var|$svc"
+  else                                                 print -r -- "sec|$var|$svc|$acct"; fi
+}
+
+_zsec_add() {
+  local var="" svc=system acct="" clip=0 personal=0 force=0
+  while (( $# )); do
+    case "$1" in
+      -c|--clipboard) clip=1 ;;
+      -p|--personal)  personal=1 ;;
+      -f|--force)     force=1 ;;
+      # Arity must be checked. Without it, a trailing `--service` consumes
+      # nothing, the later `shift` fails with a raw zsh builtin error, and the
+      # loop carries on with an empty service, writing `sec|VAR|` to the file.
+      --service)      [[ -n "${2-}" ]] || { _zsec_die "--service needs a value."; return 1 }
+                      svc="$2"; shift ;;
+      --account)      [[ -n "${2-}" ]] || { _zsec_die "--account needs a value."; return 1 }
+                      acct="$2"; shift ;;
+      --value|--value=*)
+        _zsec_die "--value is not supported on purpose." \
+                  "A value passed as an argument is visible to any process via \`ps\`." \
+                  "Use -c for the clipboard, or pipe the value in on stdin."
+        return 1 ;;
+      -h|--help)      _zsec_help_add; return 0 ;;
+      -*)             _zsec_die "unknown option '$1'. Try: zsec add -h"; return 1 ;;
+      *)              if [[ -z "$var" ]]; then var="$1"
+                      else _zsec_die "unexpected argument '$1'. Try: zsec add -h"; return 1; fi ;;
+    esac
+    shift
+  done
+
+  [[ -n "$var" ]] || { _zsec_die "add needs a variable name. Try: zsec add -h"; return 1; }
+  [[ "$var" == [A-Za-z_][A-Za-z0-9_]# ]] || {
+    _zsec_die "'$var' is not a valid shell variable name." \
+              "Use letters, digits and underscores, and do not start with a digit."
+    return 1; }
+  : ${acct:=$var}
+
+  # Service and account end up in the manifest line, so they get the same byte
+  # gate as the value, plus a ban on the field separator. A '|' would silently
+  # shift every later field, and a control character would be written literally.
+  local _f
+  for _f in "$svc" "$acct"; do
+    [[ "$_f" == *[^\ -~]* || "$_f" == *'|'* ]] && {
+      _zsec_die "service and account must be printable ASCII and contain no '|'." \
+                "'|' is the manifest field separator, so it would corrupt the line."
+      return 1; }
+  done
+
+  local file
+  if (( personal )); then file="${ZSEC_PRIVATE_FILE:-$ZDOTDIR/.zprivate}"
+  else                    file="${ZSEC_WORK_FILE:-$ZDOTDIR/.zwork}"; fi
+
+  # doctor treats a name declared in BOTH manifests as a defect: it reports
+  # DUPLICATE, exits 1, and whichever file loads second silently wins. add must
+  # not create that state. Checked before anything is written.
+  local other
+  if (( personal )); then other="${ZSEC_WORK_FILE:-$ZDOTDIR/.zwork}"
+  else                    other="${ZSEC_PRIVATE_FILE:-$ZDOTDIR/.zprivate}"; fi
+  if grep -qE "^sec\|$var(\||$)" "$other" 2>/dev/null; then
+    _zsec_die "$var is already declared in ${other:t}." \
+              "Two manifests naming one variable is the DUPLICATE state doctor" \
+              "reports, and the file that loads second wins. Remove that line first."
+    return 1
+  fi
+
+  local value
+  if (( clip )); then
+    value=$(pbpaste)
+  elif [[ ! -t 0 ]]; then
+    value=$(cat); value="${value%$'\n'}"
+  else
+    local v1 v2
+    read -rs "v1?Value for $var: "; print -u2
+    read -rs "v2?Repeat:          "; print -u2
+    [[ "$v1" == "$v2" ]] || { _zsec_die "the two entries did not match. Nothing was written."; return 1; }
+    value="$v1"
+  fi
+
+  [[ -n "$value" ]] || {
+    _zsec_die "refusing to store an empty value for $var." \
+              "$( (( clip )) && print -n 'The clipboard is empty. Copy the secret first, then re-run.' \
+                             || print -n 'No value was given.' )"
+    return 1; }
+
+  if [[ "$value" == *[^\ -~]* ]]; then
+    _zsec_die "refusing to store $var, the value is not printable ASCII." \
+              "It contains a newline, tab, accent or emoji. macOS hands those back" \
+              "hex-encoded, so the startup loader would export the hex string instead" \
+              "of your secret, with no warning. Nothing was written."
+    return 1
+  fi
+
+  local existed=0
+  security find-generic-password -s "$svc" -a "$acct" >/dev/null 2>&1 && existed=1
+  if (( existed && ! force )); then
+    _zsec_die "$var already exists in the keychain (service: $svc)." \
+              "Pass -f to overwrite it, or pick a different name."
+    return 1
+  fi
+
+  # Delete before creating, always. Two reasons, both measured:
+  #  1. `keyring set` CANNOT update an item it does not own. Run against one of
+  #     the legacy secrets that `security` created, it throws a Python traceback
+  #     and fails, so -f could never rotate them. Rotation is a core use case.
+  #  2. Creating fresh makes the item keyring-owned, so the readback below and
+  #     every later zsec read stay silent instead of raising a dialog.
+  # On the non-force path the item does not exist, so the delete is a no-op.
+  security delete-generic-password -s "$svc" -a "$acct" >/dev/null 2>&1
+  printf '%s' "$value" | keyring set "$svc" "$acct" 2>/dev/null || {
+    if (( existed )); then
+      _zsec_die "could not store $var in the keychain (service: $svc)." \
+                "The previous value was deleted before this failed, so it is GONE." \
+                "Re-run with the value you still have in hand."
+    else
+      _zsec_die "could not store $var in the keychain (service: $svc)."
+    fi
+    return 1; }
+
+  local want got
+  want=$(printf '%s' "$value" | shasum -a 256)
+  # Read back with the SAME binary that wrote, or this dialogs on every add.
+  # The $(...) strips a trailing newline if the reader adds one, and strips
+  # nothing else, so a value with trailing SPACES still round-trips. printf is a
+  # builtin, so neither side puts the value in a real process's argv.
+  got=$(printf '%s' "$(keyring get "$svc" "$acct" 2>/dev/null)" | shasum -a 256)
+  [[ "$want" == "$got" ]] || {
+    _zsec_die "verification failed for $var." \
+              "The value was stored but does not read back correctly, so an assumption" \
+              "in zsec is wrong. The keychain item was left as it is and the manifest" \
+              "was NOT updated. Please report this."
+    return 1; }
+
+  local line; line=$(_zsec_spec_line "$var" "$svc" "$acct")
+  # Compare the whole line, not just the name. Matching on the name alone meant
+  # that rotating a secret to a different service wrote the new keychain item,
+  # left the manifest pointing at the OLD service, printed "already registered,
+  # left alone", exited 0, and left doctor reporting ok while the shell kept
+  # exporting the old value. That is the exact drift this tool exists to stop.
+  # grep -E, not plain grep. BSD BRE alternation is not portable here, and the
+  # (\||$) anchor is what stops sec|FOO from matching a line for sec|FOO_BAR.
+  local existing action
+  existing=$(grep -E "^sec\|$var(\||$)" "$file" 2>/dev/null | head -1)
+  if [[ "$existing" == "$line" ]]; then
+    action="already registered in ${file:t}, unchanged"
+  else
+    # Only the INSERT path needs a heredoc block to aim at. A rewrite replaces
+    # a line that is already there, wherever it sits.
+    [[ -n "$existing" ]] || grep -q '^zload_secrets <<' "$file" 2>/dev/null || {
+      _zsec_die "$file has no 'zload_secrets <<' block, so there is nowhere to add the line." \
+                "The keychain item WAS written. Add this line yourself:" \
+                "    $line"
+      return 1; }
+    # Timestamps are second-granularity, so two adds in the same second would
+    # overwrite one backup. Bump a suffix until the name is free.
+    local bak="$file.bak-$(date +%Y%m%dT%H%M%S)" n=1
+    while [[ -e "$bak" ]]; do bak="$file.bak-$(date +%Y%m%dT%H%M%S)-$n"; (( n++ )); done
+    cp -p "$file" "$bak" || {
+      _zsec_die "could not back up $file, so refusing to modify it." \
+                "The keychain item WAS written. Add this line yourself:" "    $line"
+      return 1; }
+    local tmp awkrc=0; tmp=$(mktemp) || {
+      _zsec_die "mktemp failed. The keychain item WAS written." \
+                "Add this line yourself:" "    $line"
+      return 1; }
+    # ENVIRON, not `awk -v`. The -v form processes backslash escapes, so a
+    # service containing a literal \t would be written as a real tab.
+    if [[ -n "$existing" ]]; then
+      ZSEC_OLD="$existing" ZSEC_NEW="$line" awk \
+        '$0 == ENVIRON["ZSEC_OLD"] && !d { print ENVIRON["ZSEC_NEW"]; d=1; next } { print }' \
+        "$file" > "$tmp" || awkrc=$?
+      action="rewrote the line in ${file:t}
+    was: $existing
+    now: $line"
+    else
+      ZSEC_INS="$line" awk '/^SECRETS$/ && !ins { print ENVIRON["ZSEC_INS"]; ins=1 } { print }' \
+        "$file" > "$tmp" || awkrc=$?
+      action="registered in ${file:t} as: $line"
+    fi
+    # awk's status must gate the mv. Without it a failing awk leaves a truncated
+    # $tmp that then clobbers the manifest.
+    if (( awkrc != 0 )) || ! mv "$tmp" "$file"; then
+      rm -f "$tmp"
+      _zsec_die "failed to update $file. The keychain item WAS written." \
+                "Add this line yourself:" "    $line"
+      return 1
+    fi
+    # awk exits 0 even when it matched nothing, so a block terminated with
+    # anything other than SECRETS, or never terminated, would copy the file
+    # through unchanged and report success. Confirm the line actually landed.
+    # Presence of the new line is not enough. The rewrite replaces only the
+    # FIRST match (awk's !d), so a second stale line for the same name would
+    # survive and race it at startup. Assert the count, which is the invariant
+    # test 18c states but the code did not enforce.
+    local cnt; cnt=$(grep -cE "^sec\|$var(\||$)" "$file" 2>/dev/null)
+    if (( cnt != 1 )); then
+      _zsec_die "$file now has $cnt lines for $var, expected exactly 1." \
+                "The keychain item WAS written. A backup is at $bak." \
+                "Fix the manifest by hand so only this line remains:" "    $line"
+      return 1
+    fi
+    grep -qxF -- "$line" "$file" || {
+      if [[ -n "$existing" ]]; then
+        _zsec_die "could not rewrite the manifest line in $file." \
+                  "The keychain item WAS written. A backup is at $bak." \
+                  "Replace this line yourself:" \
+                  "    was: $existing" "    now: $line"
+      else
+        _zsec_die "could not place the manifest line in $file." \
+                  "The 'zload_secrets <<' block has no SECRETS terminator, so there" \
+                  "is nowhere to insert it. The keychain item WAS written." \
+                  "Add this line yourself:" "    $line"
+      fi
+      return 1; }
+  fi
+
+  print -r -- "$( (( existed )) && print -n updated || print -n created ) $var in the keychain (service: $svc)"
+  print -r -- "$action"
+  print -r -- "not in this shell yet. open a new shell, or: source $file"
+}
+
+_zsec_help() {
+  cat <<'EOF'
+zsec - manage the secrets your shell loads at startup
+
+HOW IT WORKS
+  Every secret has two halves that have to stay in sync:
+
+    VALUE   in the macOS login keychain, never in a file
+    NAME    in a manifest line in .zwork (work) or .zprivate (personal)
+
+  At startup zload_secrets reads each name from the manifest, looks it up in
+  the keychain, and exports it. When the halves disagree the variable just
+  goes missing and nothing says why. zsec writes both halves in one step so
+  they cannot drift, and `zsec doctor` catches it if they ever do.
+
+USAGE
+  zsec add VAR [options]   store a value and register the name
+  zsec ls [-p]             list registered secrets and their status
+  zsec doctor              check that every name resolves, exit 1 if not
+  zsec help                this text
+
+OPTIONS for add
+  -c, --clipboard     take the value from the clipboard
+  -p, --personal      target .zprivate instead of .zwork
+  -f, --force         overwrite a keychain item that already exists
+      --service SVC   keychain service, default: system
+      --account ACCT  keychain account, default: same as VAR
+
+  The value comes from the clipboard with -c, from stdin when stdin is a
+  pipe, otherwise from a silent double prompt. It is never an argument, so
+  it cannot leak into your shell history or into `ps` output.
+
+EXAMPLES
+  # You copied a token. Store it as a work secret.
+  zsec add GH_PROD_PASSWORD -c
+
+  # Same, but personal.
+  zsec add RAILWAY_TOKEN -c -p
+
+  # Type it instead. Prompts twice, echoes nothing.
+  zsec add REDASH_API_TOKEN
+
+  # Pipe it from another tool.
+  op read "op://Private/Okta/password" | zsec add OKTA_PASSWORD
+
+  # Rotate one you already have.
+  zsec add GH_PROD_PASSWORD -c -f
+
+  # The keychain item is filed under a non-default service or account.
+  zsec add DD_API_KEY -c --service datadog
+  zsec add ANTHROPIC_API_KEY -c -p --service "Claude Code" --account "$USER"
+
+  # What is registered, and does it resolve?
+  zsec ls
+  zsec doctor
+
+AFTER ADDING
+  The variable is not in your current shell yet. Open a new shell, or source
+  the file zsec just told you it wrote:
+      source ~/.config/zsh/.zwork        # or .zprivate, if you used -p
+
+NOTES
+  The first time anything reads a secret you just added, macOS asks you to
+  authorize it, once. Click Always Allow and it will not ask again. Either a
+  new shell or `zsec doctor` can be what triggers that first read.
+  No zsec command ever prints a secret value.
+  Manifest edits back the file up to <file>.bak-<timestamp> first.
+  Re-adding a name already in the manifest does not duplicate the line.
+  Values must be printable ASCII. A newline, tab, accent or emoji is
+  refused, because macOS returns those hex-encoded and the startup loader
+  would export the hex instead of the secret. `zsec doctor` flags any such
+  item that got in by another route.
+  doctor cannot find keychain items that have no manifest line. Listing the
+  keychain prompts for auth on every item.
+EOF
+}
+
+_zsec_help_add() {
+  cat <<'EOF'
+zsec add VAR [options]   store a value and register the name
+
+OPTIONS
+  -c, --clipboard     take the value from the clipboard
+  -p, --personal      target .zprivate instead of .zwork
+  -f, --force         overwrite a keychain item that already exists
+      --service SVC   keychain service, default: system
+      --account ACCT  keychain account, default: same as VAR
+
+  The value comes from the clipboard with -c, from stdin when stdin is a
+  pipe, otherwise from a silent double prompt. It is never an argument, so
+  it cannot leak into your shell history or into `ps` output.
+
+  Values must be printable ASCII. A newline, tab, accent or emoji is
+  refused, because macOS returns those hex-encoded and the startup loader
+  would export the hex instead of the secret.
+
+EXAMPLES
+  # You copied a token. Store it as a work secret.
+  zsec add GH_PROD_PASSWORD -c
+
+  # Same, but personal.
+  zsec add RAILWAY_TOKEN -c -p
+
+  # Type it instead. Prompts twice, echoes nothing.
+  zsec add REDASH_API_TOKEN
+
+  # Pipe it from another tool.
+  op read "op://Private/Okta/password" | zsec add OKTA_PASSWORD
+
+  # Rotate one you already have.
+  zsec add GH_PROD_PASSWORD -c -f
+
+  # The keychain item is filed under a non-default service or account.
+  zsec add DD_API_KEY -c --service datadog
+  zsec add ANTHROPIC_API_KEY -c -p --service "Claude Code" --account "$USER"
+EOF
+}
+
+# Shared iterator. doctor reuses it, so it is hardened for a second consumer.
+# Three things here are load-bearing and each was a verified bug first:
+#  1. `|| [[ -n "$_ze_line" ]]` - a bare `read` returns non-zero on a final line
+#     with no trailing newline, silently dropping that entry. A registered
+#     secret would vanish from ls and doctor with no error at all.
+#  2. fd 3, not stdin - the callback inherits fd 0, so a callback that reads
+#     stdin eats manifest lines. Measured: a one-`read` callback consumed every
+#     second entry.
+#  3. `_ze_` prefixes - zsh scopes dynamically, so the callback can see and
+#     clobber these. A callback assigning a bare `n` corrupted the line counter.
+# `$_ze_n` is the FILE line number, not the ordinal of sec| lines, because
+# doctor points the user at a line in a file.
+_zsec_each_entry() {
+  local _ze_file="$1" _ze_cb="$2" _ze_label="$3" _ze_n=0
+  local _ze_line _ze_kind _ze_var _ze_svc _ze_acct
+  [[ -r "$_ze_file" ]] || return 0
+  # Mirror what zload_secrets will actually see. A QUOTED heredoc (<<'SECRETS')
+  # passes $USER through literally and zload_secrets does not expand it, so
+  # substituting here would make doctor report ok for an entry that fails at
+  # startup. An UNQUOTED heredoc (<<SECRETS) means the shell already expanded it
+  # before zload_secrets ran, so we must substitute to match. .zwork is quoted,
+  # .zprivate is not, and they genuinely behave differently.
+  local _ze_expand=1
+  grep -q "^zload_secrets <<'" "$_ze_file" 2>/dev/null && _ze_expand=0
+  while IFS= read -r _ze_line <&3 || [[ -n "$_ze_line" ]]; do
+    (( ++_ze_n ))
+    [[ "$_ze_line" == sec\|* ]] || continue
+    IFS='|' read -r _ze_kind _ze_var _ze_svc _ze_acct <<< "$_ze_line"
+    _ze_svc="${_ze_svc:-system}"; _ze_acct="${_ze_acct:-$_ze_var}"
+    if (( _ze_expand )); then
+      _ze_svc="${_ze_svc//\$USER/$USER}"; _ze_acct="${_ze_acct//\$USER/$USER}"
+    fi
+    "$_ze_cb" "$_ze_var" "$_ze_svc" "$_ze_acct" "$_ze_n" "$_ze_label"
+  done 3< "$_ze_file"
+}
+
+# Top level on purpose. zsh has no nested function scope, so defining this
+# inside _zsec_ls would make it global anyway while hiding that fact. Declaring
+# it here lets the file label arrive as an argument instead of via a global.
+_zsec_ls_row() {
+  # `st`, not `status`. In zsh `status` is the csh-compat alias for `?` and is
+  # integer-readonly-special, so `local status=ok` aborts the function with
+  # "read-only variable: status" and every row vanishes. Verified on zsh 5.9.
+  # `local -h status` would also work but hides $? inside a function that reads
+  # an exit code on the next line, so the rename is the honest fix.
+  local var="$1" svc="$2" acct="$3" label="$5" st=ok
+  security find-generic-password -s "$svc" -a "$acct" >/dev/null 2>&1 || st=MISSING
+  printf '%-32s %-11s %-14s %s\n' "$var" "$label" "$svc" "$st"
+}
+
+_zsec_ls() {
+  local personal=0
+  [[ "${1:-}" == -h || "${1:-}" == --help ]] && { print -r -- "zsec ls [-p]  list registered secrets and their status"; return 0 }
+  [[ "${1:-}" == -p || "${1:-}" == --personal ]] && personal=1
+
+  printf '%-32s %-11s %-14s %s\n' NAME FILE SERVICE STATUS
+  local f priv="${ZSEC_PRIVATE_FILE:-$ZDOTDIR/.zprivate}"
+  for f in "${ZSEC_WORK_FILE:-$ZDOTDIR/.zwork}" "$priv"; do
+    (( personal )) && [[ "$f" != "$priv" ]] && continue
+    _zsec_each_entry "$f" _zsec_ls_row "${f:t}"
+  done
+}
+
+# Build the remediation line for a MISSING entry. It must carry --service and
+# --account when they are not the defaults: `zsec add VAR -c -f` alone would
+# recreate the item at service=system, leaving an orphan, leaving doctor still
+# red, and printing "already registered ... left alone", which reads as success.
+# Declared on a SEPARATE `local` line from var/svc/acct: in zsh a later
+# assignment in the same `local` cannot see an earlier one in that statement.
+_zsec_fix_hint() {
+  local var="$1" svc="$2" acct="$3"
+  local h="zsec add $var -c -f"
+  [[ "$svc" != system ]] && h+=" --service ${(q)svc}"
+  [[ "$acct" != "$var" ]] && h+=" --account ${(q)acct}"
+  print -r -- "$h"
+}
+
+# Top level, same reason as _zsec_ls_row. The counters stay global because
+# they accumulate across calls, which is what an accumulator is for. The file
+# label does not, so it arrives as $5.
+_zsec_doctor_row() {
+  local var="$1" svc="$2" acct="$3" n="$4" label="$5"
+  (( ++_zsec_total ))
+  # The NAME half, which doctor used not to check at all. zload_secrets turns
+  # this into `export $var=...`; an invalid identifier makes `source` abort and
+  # silently drops every secret after it, in a different order each shell start.
+  # doctor validated the keychain half exhaustively and reported the whole set
+  # healthy while that was happening.
+  if [[ ! "$var" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+    (( _zsec_malformed++ ))
+    printf '  %-10s %-30s not a valid shell variable name, %s:%s\n' \
+      MALFORMED "${var:-(empty)}" "$label" "$n"
+    printf '  %-10s %-30s startup aborts here and loses every secret after it\n' '' ''
+    return
+  fi
+  if [[ -n "${_zsec_seen[$var]:-}" ]]; then
+    (( _zsec_dup++ ))
+    printf '  %-10s %-30s also declared at %s, %s wins\n' \
+      DUPLICATE "$var" "${_zsec_seen[$var]}" "$label"
+    return
+  fi
+  _zsec_seen[$var]="$label:$n"
+
+  # Existence check uses the metadata form, with no -w, so it never touches the
+  # value and can never raise an authorization prompt.
+  if ! security find-generic-password -s "$svc" -a "$acct" >/dev/null 2>&1; then
+    (( _zsec_missing++ ))
+    printf '  %-10s %-30s no keychain item for service=%s account=%s\n' MISSING "$var" "$svc" "$acct"
+    printf '  %-10s %-30s fix: %s\n' '' '' "$(_zsec_fix_hint "$var" "$svc" "$acct")"
+    return
+  fi
+  # `security -g` prefixes hex-encoded data with 0x and leaves printable values
+  # unprefixed. That is the discriminator `-w` cannot provide, because a value
+  # that is legitimately all hex digits is indistinguishable in -w output.
+  # Verified not to false-positive on 'deadbeef1234'. The value itself is never
+  # captured, only whether the 0x tag is present.
+  #
+  # This DOES read item data, so it can raise the one-time authorization dialog
+  # on a keyring-written item, which is every item `zsec add` created. That is
+  # the same single Always-Allow that zload_secrets would trigger at the next
+  # shell start, not an extra one. An earlier comment here claimed "no second
+  # binary, so no ACL prompt", which was wrong: what matters is whether
+  # `security` is the binary that WROTE the item, and it is not.
+  #
+  # Capture the producer's exit status separately. Letting grep's match be the
+  # only signal meant a denied authorization, or an item deleted between the two
+  # calls, fell through to `ok`. A false `ok` is the one verdict doctor must
+  # never give.
+  local _g _grc
+  _g=$(security find-generic-password -s "$svc" -a "$acct" -g 2>&1 >/dev/null)
+  _grc=$?
+  if (( _grc != 0 )); then
+    (( _zsec_unreadable++ ))
+    printf '  %-10s %-30s security could not read it (rc=%s). Authorization denied?\n' \
+      UNREADABLE "$var" "$_grc"
+    return
+  fi
+  if print -r -- "$_g" | grep -q '^password: 0x'; then
+    (( _zsec_hex++ ))
+    printf '  %-10s %-30s value is not printable ASCII, security returns hex\n' HEXTRAP "$var"
+    printf '  %-10s %-30s fix: re-store it as ASCII, or stop exporting it\n' '' ''
+    return
+  fi
+  printf '  %-10s %s\n' ok "$var"
+}
+
+_zsec_doctor() {
+  [[ "${1:-}" == -h || "${1:-}" == --help ]] && {
+    print -r -- "zsec doctor  check every registered secret resolves and reads back cleanly"
+    print -r -- "             exits 1 if anything is wrong"
+    print -r -- "             may raise one keychain authorization dialog per secret"
+    print -r -- "             the first time, same as the next shell start would"
+    return 0 }
+
+  typeset -gA _zsec_seen=()
+  typeset -g _zsec_missing=0 _zsec_hex=0 _zsec_dup=0 _zsec_total=0 _zsec_unreadable=0 _zsec_malformed=0
+
+  local f
+  for f in "${ZSEC_WORK_FILE:-$ZDOTDIR/.zwork}" "${ZSEC_PRIVATE_FILE:-$ZDOTDIR/.zprivate}"; do
+    [[ -r "$f" ]] || continue
+    print -r -- "${f:t}"
+    _zsec_each_entry "$f" _zsec_doctor_row "${f:t}"
+  done
+
+  print -r -- ""
+  print -r -- "$_zsec_total checked, $_zsec_missing missing, $_zsec_hex hex-trapped, $_zsec_unreadable unreadable, $_zsec_dup duplicate, $_zsec_malformed malformed."
+  local bad=$(( _zsec_missing + _zsec_hex + _zsec_unreadable + _zsec_dup + _zsec_malformed ))
+  # All six, not just the map. These are typeset -g, so leaving the counters
+  # behind pollutes the interactive shell on every doctor run.
+  unset _zsec_seen _zsec_total _zsec_missing _zsec_hex _zsec_unreadable _zsec_dup _zsec_malformed
+  (( bad == 0 ))
+}
+
+case "${1:-}" in
+  add)            shift; _zsec_add    "$@" ;;
+  ls)             shift; _zsec_ls     "$@" ;;
+  doctor)         shift; _zsec_doctor "$@" ;;
+  help|-h|--help) _zsec_help ;;
+  "")             print -ru2 -- "usage: zsec {add|ls|doctor|help}   run 'zsec help' for examples"; return 1 ;;
+  *)              print -ru2 -- "zsec: unknown subcommand '$1'"
+                  print -ru2 -- "usage: zsec {add|ls|doctor|help}   run 'zsec help' for examples"
+                  return 1 ;;
+esac
