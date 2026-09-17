@@ -6,7 +6,7 @@ files that load in a deterministic order. Secrets are kept out of git and read
 from the macOS keychain at startup, in parallel, with no job-control noise.
 
 Startup cost: **~1.1s** for a fresh login+interactive shell (was ~7s before the
-2026-06 rewrite — see `docs/plans/2026-06-28-zsh-config-reorg.md` for the full
+2026-06 rewrite, see `docs/plans/2026-06-28-zsh-config-reorg.md` for the full
 story and rationale).
 
 ---
@@ -32,11 +32,11 @@ $ZDOTDIR/.zshrc           interactive shells: the orchestrator ↓
         env.zsh                  non-secret, shareable env vars
         .zwork                   work env + work secrets   (untracked)
         .zprivate                personal secrets          (untracked)
-        rc.d/99-highlight.zsh    syntax highlighting — MUST be last
+        rc.d/99-highlight.zsh    syntax highlighting, MUST be last
 ```
 
 A new iTerm2 tab opens a **login + interactive** shell, so it runs the whole
-chain. `.zshrc` is intentionally ~12 lines — it only sources things in order.
+chain. `.zshrc` is intentionally ~12 lines. It only sources things in order.
 Don't add logic there; put it in the right `rc.d/` file.
 
 ### Why the numbering matters (the hard rules)
@@ -77,17 +77,51 @@ The `rc.d/` prefixes encode real dependencies. Keep them:
 
 Three buckets, by sensitivity and machine:
 
-- **`env.zsh`** (tracked) — non-secret, shareable env you're happy to commit.
-- **`.zwork`** (gitignored) — work-internal env + work secrets (GDP, Google,
+- **`env.zsh`** (tracked): non-secret, shareable env you're happy to commit.
+- **`.zwork`** (gitignored): work-internal env + work secrets (GDP, Google,
   Artifactory, Jenkins, Datadog, Jira, Redash, Okta). Drop this file only on a
   work machine.
-- **`.zprivate`** (gitignored) — personal secrets (Anthropic, Railway, GitHub,
+- **`.zprivate`** (gitignored): personal secrets (Anthropic, Railway, GitHub,
   hobby projects).
 
-Secret **values** never live in these files — only the *names* and where to find
+Secret **values** never live in these files, only the *names* and where to find
 them. The actual values sit in the **macOS login keychain** and are read at
 startup by the `zload_secrets` helper, which runs all lookups in parallel inside
 a subshell (fast, and no `[N] …` job-control chatter).
+
+If a name in a manifest has no keychain item behind it, startup prints one
+warning naming the variables that did not resolve and pointing you at
+`zsec doctor`. It does not fail quietly.
+
+### Adding a secret
+
+`zsec` writes the keychain item and the manifest line in one step, so the two
+halves cannot drift apart. Four subcommands:
+
+```sh
+zsec add FOO_API_KEY -c   # store the clipboard contents, and register the name
+zsec ls                   # what is registered, and does each name resolve
+zsec doctor               # same check, exits 1 if anything is wrong
+zsec help                 # full reference: -f, --service, --account, examples
+```
+
+`-p` targets `.zprivate` instead of `.zwork`, on both `add` and `ls`.
+
+The value is never an argument, so it cannot leak into your shell history or
+into `ps` output. It comes from the clipboard with `-c`, from stdin when stdin
+is a pipe, otherwise from a silent double prompt.
+
+**Expect one macOS authorization dialog per new secret.** `zsec add` stores the
+value with `keyring` and `zload_secrets` reads it back with `security`, and a
+keychain item only grants read access to the binary that created it, so macOS
+asks you to authorize the reader once. Click **Always Allow** and it never asks
+again. Whatever reads the secret first triggers it, either the next shell start
+or a `zsec doctor` run.
+
+Values must be printable ASCII. macOS hands anything else back hex-encoded, so
+`zload_secrets` would export the hex string instead of the secret. `zsec add`
+refuses a value containing a newline, tab, accent or emoji, and `zsec doctor`
+reports `HEXTRAP` for one that got in by another route.
 
 > Both `.zwork` and `.zprivate` are matched by `.gitignore`, so they can never be
 > committed. Verify with `git check-ignore zsh/.zwork zsh/.zprivate`.
@@ -98,18 +132,19 @@ a subshell (fast, and no `[N] …` job-control chatter).
 
 ### Add a password / secret/token
 
-Two steps: store the value in the keychain, then declare it.
+Use `zsec add VAR -c` (work) or `zsec add VAR -c -p` (personal), see
+[Adding a secret](#adding-a-secret) above. The rest of this section is the
+underlying two-step, for reading an existing line or writing one by hand.
 
-**1. Store it in the keychain** (pick one):
+**1. Store it in the keychain** with the keyring CLI, the same binary `zsec add`
+uses. "service" and "account" are arbitrary labels you pick.
 
 ```sh
-# Using the keyring CLI (prompts for the value; this is what most existing
-# secrets use). "service" and "account" are arbitrary labels you choose.
-keyring set <service> <account>
-
-# …or natively (no Python). -U updates if it already exists.
-security add-generic-password -U -s <service> -a <account> -w '<value>'
+keyring set <service> <account>     # prompts for the value
 ```
+
+Do not use `security add-generic-password -w '<value>'`. It puts the secret in
+`argv`, where the endpoint-security agent on this machine captures it.
 
 **2. Declare it** by adding one line to `.zwork` (work) or `.zprivate`
 (personal), inside the `zload_secrets <<'SECRETS' … SECRETS` block:
@@ -125,7 +160,7 @@ sec|VAR_NAME|service|account
 
 `VAR_NAME` is the environment variable that gets exported.
 
-**Example** — add a `FOO_API_KEY` personal token:
+**Example.** Add a `FOO_API_KEY` personal token:
 
 ```sh
 keyring set foo-api "$USER"                       # paste the token when prompted
@@ -134,17 +169,16 @@ then in `.zprivate`:
 ```
 sec|FOO_API_KEY|foo-api|$USER
 ```
-Open a new shell; `echo $FOO_API_KEY` should show it. (The `.zprivate` heredoc is
-*unquoted* — `<<SECRETS` — specifically so `$USER` expands. `.zwork` uses a
-quoted `<<'SECRETS'` because none of its lines need expansion.)
+Open a new shell; `echo $FOO_API_KEY` should show it. The `.zprivate` heredoc is
+*unquoted*, `<<SECRETS`, specifically so `$USER` expands. `.zwork` uses a quoted
+`<<'SECRETS'` because none of its lines need expansion.
 
-To check a value is in the keychain without opening a shell:
-```sh
-security find-generic-password -s <service> -a <account> -w
-```
+To check a name resolves without opening a shell, run `zsec ls` or `zsec
+doctor`. Neither prints a value, and neither adds an authorization dialog beyond
+the one the next shell start would raise anyway.
 
 ### Add an alias
-Edit `aliases.zsh`. Aliases only — if it needs logic or arguments, make it a
+Edit `aliases.zsh`. Aliases only. If it needs logic or arguments, make it a
 function instead.
 
 ### Add a function
@@ -189,16 +223,17 @@ The tracked files are machine-agnostic. To set up a new machine:
    (sets `XDG_CONFIG_HOME` + `ZDOTDIR`, then sources `$ZDOTDIR/.zshenv`).
 2. Install the tools the `rc.d/` files reference (brew, pyenv, starship, atuin,
    fzf, direnv, eza, …).
-3. Create `.zprivate` (personal) and, on a work machine, `.zwork` — then store
-   their secrets in that machine's keychain (`keyring set …`). On a personal
+3. Create `.zprivate` (personal) and, on a work machine, `.zwork`, then store
+   their secrets in that machine's keychain (`zsec add …`). On a personal
    machine, simply omit `.zwork`; `.zshrc` sources it only if present.
 
 ---
 
 ## Performance notes
 
-- **nvm** is lazy-loaded — the newest installed node is put on `PATH` instantly;
-  `nvm.sh` is sourced only on the first `nvm`/`node`/`npm`/`npx`/`corepack` call.
+- **nvm** is lazy-loaded, so the newest installed node is put on `PATH`
+  instantly; `nvm.sh` is sourced only on the first
+  `nvm`/`node`/`npm`/`npx`/`corepack` call.
 - **pyenv** uses `--no-rehash` (skips rebuilding ~400 shims every startup).
 - **secrets** use native `security` (not the Python `keyring`), read in parallel
   in a subshell.
