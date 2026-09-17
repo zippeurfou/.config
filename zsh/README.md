@@ -96,16 +96,17 @@ warning naming the variables that did not resolve and pointing you at
 ### Adding a secret
 
 `zsec` writes the keychain item and the manifest line in one step, so the two
-halves cannot drift apart. Four subcommands:
+halves cannot drift apart. Five subcommands:
 
 ```sh
 zsec add FOO_API_KEY -c   # store the clipboard contents, and register the name
 zsec ls                   # what is registered, and does each name resolve
+zsec rm FOO_API_KEY -f    # remove a secret; without -f it is a dry run
 zsec doctor               # same check, exits 1 if anything is wrong
 zsec help                 # full reference: -f, --service, --account, examples
 ```
 
-`-p` targets `.zprivate` instead of `.zwork`, on both `add` and `ls`.
+`-p` targets `.zprivate` instead of `.zwork`, on `add`, `ls` and `rm`.
 
 The value is never an argument, so it cannot leak into your shell history or
 into `ps` output. It comes from the clipboard with `-c`, from stdin when stdin
