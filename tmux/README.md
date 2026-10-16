@@ -59,6 +59,7 @@ Plugins live under `plugins/` (git-ignored — reinstall anytime with `prefix I`
 | Theme | **tokyo-night-tmux** | Direct palette match to your nvim `tokyonight-night` (not catppuccin). |
 | Persistence | **resurrect + continuum** | Auto-save every 15 min, auto-restore on start. |
 | Navigation history | **own script + hooks** (`scripts/nav-history.sh`) on `prefix ←/→` + `Cmd+←/→` | tmux only toggles one step back (`last-window`, `switch-client -l`), and those keys went to hjkl/HJKL anyway. A place is a **window**, so hopping between splits doesn't flood it. Each window appears **once**, like vim's jumplist. tmux-jumplist exists, but it records every pane change and had 1 star. |
+| Agent attention | **a `● N` dot + `prefix ↑` / `Cmd+↑`**, fed by an opencode plugin | Sound and desktop notifications interrupt, and herdr was too much. The dot says *whether* agents wait, the key takes you *there*, `Cmd+←` brings you back. tmux counts the dot at every redraw from per-pane state, so no shared counter can go stale. |
 
 ### The mental model
 `Ctrl+b` then a verb. Because nav is prefix-based, tmux is **invisible until you press the
@@ -105,6 +106,13 @@ prefix** — so inside nvim nothing breaks. The verbs mirror your nvim `<C-w>` m
 
 See **Navigation history** below for the rules.
 
+### Agents (opencode waiting for you)
+| Keys | Action |
+|---|---|
+| `prefix ↑` / `Cmd+↑` | go to the agent that has waited longest; again for the next one |
+
+The bar shows `● N` on the right while N agents wait, and nothing otherwise. See **Agent dot** below.
+
 ### Floating & misc
 | Keys | Action |
 |---|---|
@@ -143,6 +151,26 @@ wiring in `nav-history.conf`.
 - **Tests.** Run `bash ~/.config/tmux/tests/nav-history.test.sh`. They spin up throwaway tmux servers
   on their own sockets and never touch your live one.
 
+## Agent dot
+A `● N` on the right of the status bar while opencode agents wait for you, in any session. The
+opencode plugin (`~/.config/opencode/plugins/agent-attention.ts`) reports each pane's state;
+`scripts/agent-attention.sh` and `agent-attention.conf` do the rest.
+- **Waiting** means the turn ended (the main session and all its subagents are done) or a permission
+  or question prompt is open.
+- **Looking at it clears it**, however you get there: `Cmd+↑`, `Ctrl+1-9`, `Cmd+O`, or moving into
+  its split. An agent that finishes in the pane you're on never lights the dot. Its next wait does.
+- **`Cmd+↑` goes to the agent waiting longest**, then the next. With none left it says
+  `agents: none waiting`. The jump lands in the history, so `Cmd+←` takes you back.
+- **Only live agents count.** A pane that no longer runs opencode (it crashed) is ignored, and
+  quitting opencode clears its pane.
+- **The plugin loads when opencode starts**, so an agent that was already running when you installed
+  or changed it reports nothing until you restart it.
+- floax's `scratch` session is off for the jump too (`agents: off in scratch`).
+- **Tests.** `bash ~/.config/tmux/tests/agent-attention.test.sh` covers the tmux side, and
+  `bun test ./tmux/tests/agent-attention.plugin.test.ts` (from `~/.config`) the plugin. The opt-in
+  `bash ~/.config/tmux/tests/agent-attention.e2e.sh` starts a real opencode (MCP servers off) and makes
+  one small model call; re-run it after upgrading opencode, since it proves the events still match.
+
 ## Three shortcut layers (the mental model)
 | Layer | Keys | Job | Works |
 |---|---|---|---|
@@ -167,6 +195,7 @@ keybindings.conf        prefix verbs (all -N described): s/v/h/j/k/l/H-L/m/q/o, 
 plugins.conf            TPM + plugin list + sessionx/floax/resurrect settings (runs TPM last)
 theme.conf              tokyo-night-tmux options
 nav-history.conf        back/forward history: hooks + prefix ←/→ (sourced after TPM)
+agent-attention.conf    agent dot (status-right) + prefix ↑ + "seen" hooks (sourced last)
 sessionizer.aliases     optional per-folder session-name overrides
 scripts/sessionizer.sh  picker over ~/Projects (prefix f / Cmd+P)
 scripts/session-here.sh new session from the current folder (prefix N)
@@ -174,11 +203,17 @@ scripts/new-window.sh   popup that names a new window (prefix c / Cmd+T)
 scripts/rename-window.sh popup that renames the current window (prefix ,)
 scripts/cheatsheet.sh   colorized prefix-key cheatsheet (prefix ?)
 scripts/nav-history.sh  history logic: record (hooks) / back / forward (prefix ←/→)
-tests/lib.sh            shared test harness: throwaway servers, assertions
+scripts/agent-attention.sh  agent state: set (plugin) / seen (hooks) / next (prefix ↑)
+tests/lib.sh            shared test harness: throwaway servers, fake opencode, assertions
 tests/nav-history.test.sh  history tests, on throwaway tmux servers
+tests/agent-attention.test.sh  agent dot + jump tests, on throwaway tmux servers
+tests/agent-attention.plugin.test.ts  opencode plugin tests (bun)
+tests/agent-attention.e2e.sh  opt-in end-to-end check with a real opencode
 iterm2-cmd-layer.json   iTerm2 Dynamic Profile = the CMD layer
 README.md               this file
 ```
+The opencode half of the agent dot lives outside this folder:
+`~/.config/opencode/plugins/agent-attention.ts`.
 
 > **Picker display:** shows the **folder name only** (full path is in the preview + used for
 > the session). **What the project finder lists:** children of `~/Projects` (add more via `SESSIONIZER_ROOTS`,
@@ -196,10 +231,11 @@ README.md               this file
 - Save state lives in `~/.local/share/tmux/resurrect/` (outside this repo).
 
 ## Dependencies
-Present: `fzf`, `zoxide`, brew `bash` 5.3, `jq`, `bc`, `gdate`. **`status-right` is intentionally blanked**
-(in `plugins.conf`), so the bar shows only the session name + window tabs — the theme's path / git / hostname
-widgets don't render (and `show_hostname` is `0` in `theme.conf`). To show them, remove the `status-right ""`
-line; **battery / netspeed** additionally need:
+Present: `fzf`, `zoxide`, brew `bash` 5.3, `jq`, `bc`, `gdate`. The tests also use coreutils' `gsleep`
+(as a fake opencode) and `bun` (plugin tests). **`status-right` only shows the agent dot.** `plugins.conf`
+blanks the theme's widgets and `agent-attention.conf` puts the dot there, so the bar is the session name +
+window tabs, plus `● N` while agents wait (`show_hostname` is `0` in `theme.conf`). To get the theme's
+path / git widgets back, remove the `status-right` lines in both files; **battery / netspeed** additionally need:
 ```
 brew install gawk gnu-sed
 # then in theme.conf set the widget(s) to 1 and: prefix r
@@ -222,13 +258,14 @@ that inherits your default profile and only adds these `Send Hex Code` mappings 
 | `Cmd+D` / `Cmd+Shift+D` | split side / stack | `Ctrl+1`…`9` | window 1–9 (Cmd+num = iTerm tabs) |
 | `Cmd+Shift+[` / `]` | prev / next window | `Cmd+P` | project finder (open by folder) |
 | `Cmd+/` | floating scratch | `Cmd+O` | session switcher (open sessions) |
-| `Cmd+←` / `Cmd+→` | history back / forward | | |
+| `Cmd+←` / `Cmd+→` | history back / forward | `Cmd+↑` | go to the agent waiting longest |
 
 **Activate:** iTerm2 → Settings → Profiles → select **“tmux (CMD layer)”** → *Other Actions ▸
 Set as Default*. **Rollback:** delete the symlink (or pick another profile). CMD bindings are
 iTerm2-local — they don't travel over SSH; the `C-b` prefix is the portable fallback.
 Notes: `Cmd+K` (normally clear buffer) becomes pane-down; `Cmd+C/V/F` are untouched.
-`Cmd+←/→` (normally iTerm's previous/next tab, like `Cmd+Shift+[/]`) become history back/forward.
+`Cmd+←/→` (normally iTerm's previous/next tab, like `Cmd+Shift+[/]`) become history back/forward, and
+`Cmd+↑` (normally iTerm scrolling one line, which does nothing useful under tmux) jumps to an agent.
 The profile also sets **Left Option = Esc+** so nvim's `<M-…>` maps (e.g. `M-d`) reach nvim
 through tmux (Right Option stays Normal, for accents). Paired with `extended-keys on` in tmux.
 
@@ -241,6 +278,9 @@ through tmux (Right Option stays Normal, for accents). Paired with `extended-key
 - **A new-window popup didn't appear after editing config** → reload: `prefix r`.
 - **`tmux-resurrect file not found` on the very first start** → benign; it seeds after the first save.
 - **A plugin or menu looks broken** → reinstall plugins: `prefix I`.
-- **`Cmd+←/→` still switch iTerm tabs** → iTerm hasn't reloaded the CMD-layer profile: run
+- **`Cmd+←/→/↑` still switch iTerm tabs or scroll** → iTerm hasn't reloaded the CMD-layer profile: run
   `touch -h ~/Library/Application\ Support/iTerm2/DynamicProfiles/tmux-cmd-layer.json`, or reopen iTerm2
   (tmux and everything in it keep running).
+- **An agent never shows in the dot** → that opencode started before the plugin was there (restart it), or an
+  opencode upgrade changed its events (`oc` upgrades it daily). `bash ~/.config/tmux/tests/agent-attention.e2e.sh`
+  tells which: it passes in the first case. To see what a pane reports: `tmux display -p -t <pane> '#{@agent_state}'`.

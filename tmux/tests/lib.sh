@@ -1,6 +1,6 @@
-# Shared harness for the tmux tests (nav-history.test.sh).
-# Source it, then set CONFS if needed, define test functions named like t01_*,
-# and end with run_tests.
+# Shared harness for the tmux tests (nav-history.test.sh, agent-attention.test.sh).
+# Source it, then set CONFS if needed, define test functions named like t01_* or
+# a01_*, and end with run_tests.
 #
 # Safety: your live tmux server is never touched. Every test builds two throwaway
 # servers on their own sockets, and teardown kills only those two:
@@ -27,6 +27,15 @@ INNER_PID=""                 # inner server's pid: its children are the hook job
 SHIM=$(mktemp -d) || exit 1
 printf '#!/bin/sh\nexec "%s" -L "%s" "$@"\n' "$REAL_TMUX" "$INNER" >"$SHIM/tmux"
 chmod +x "$SHIM/tmux"
+# A sleep binary named opencode: tmux reports its pane_current_command as
+# "opencode", like a real agent, without starting one. It has to be coreutils'
+# gsleep: macOS kills a copy of /bin/sleep (Apple platform binaries refuse to run
+# from another path).
+cp "$(command -v gsleep)" "$SHIM/opencode" 2>/dev/null ||
+  { echo "harness: needs gsleep (brew install coreutils)" >&2; exit 2; }
+# By absolute path, never through PATH: a PATH lookup that missed the shim would
+# start your real opencode.
+AGENT="exec '$SHIM/opencode' 86400"
 
 ti() { "$REAL_TMUX" -L "$INNER" "$@"; }
 to() { "$REAL_TMUX" -L "$OUTER" "$@"; }
@@ -99,7 +108,7 @@ wait_for() {
 # and (2) the entry under the history's cursor is the window the client is on.
 # (1) matters on its own: after a background change, (2) is already true before
 # the hook has even run.
-jobs_running() { pgrep -P "$INNER_PID" -f 'nav-history.sh' >/dev/null; }
+jobs_running() { pgrep -P "$INNER_PID" -f 'nav-history.sh|agent-attention.sh' >/dev/null; }
 quiet() {   # true after 5 idle polls in a row (~100ms); false if still busy after 5s
   local idle=0 deadline=$(($(now_us) + 5000000))
   while ((idle < 5)); do
@@ -202,7 +211,7 @@ expect_stays() {   # expect_stays <description> <session:window> <message>
 
 # --- run ----------------------------------------------------------------------
 
-# Runs every function named like t01_*, in name order.
+# Runs every function named like t01_* / a01_*, in name order.
 # ONLY=t07 runs just the tests whose name starts with that prefix.
 run_tests() {
   local t
