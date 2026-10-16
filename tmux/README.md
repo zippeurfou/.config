@@ -58,6 +58,7 @@ Plugins live under `plugins/` (git-ignored — reinstall anytime with `prefix I`
 | Floating pane | **floax** (`prefix p`) + native (`prefix *`) | floax = persistent toggle scratch (tmux 3.7's native floating is still "initial"). |
 | Theme | **tokyo-night-tmux** | Direct palette match to your nvim `tokyonight-night` (not catppuccin). |
 | Persistence | **resurrect + continuum** | Auto-save every 15 min, auto-restore on start. |
+| Navigation history | **own script + hooks** (`scripts/nav-history.sh`) on `prefix ←/→` + `Cmd+←/→` | tmux only toggles one step back (`last-window`, `switch-client -l`), and those keys went to hjkl/HJKL anyway. A place is a **window**, so hopping between splits doesn't flood it. Each window appears **once**, like vim's jumplist. tmux-jumplist exists, but it records every pane change and had 1 star. |
 
 ### The mental model
 `Ctrl+b` then a verb. Because nav is prefix-based, tmux is **invisible until you press the
@@ -96,6 +97,14 @@ prefix** — so inside nvim nothing breaks. The verbs mirror your nvim `<C-w>` m
 | `prefix d` | detach (session keeps running in the background) |
 | `prefix $` | rename session |
 
+### History (back / forward through the windows you visited, across sessions)
+| Keys | Action |
+|---|---|
+| `prefix ←` / `Cmd+←` | back to the previous place |
+| `prefix →` / `Cmd+→` | forward again (only after going back) |
+
+See **Navigation history** below for the rules.
+
 ### Floating & misc
 | Keys | Action |
 |---|---|
@@ -114,6 +123,25 @@ Profiles ▸ Keys ▸ **Right Option key = Esc+** to make `Ctrl+⌥(right)+s` et
 - `Ctrl+F` → file finder · `Ctrl+G` → grep (your existing zsh finders; unchanged).
 - Opening iTerm2 **auto-attaches** to a `main` session (see Shell integration). Opt out: `NO_TMUX=1`.
 - Aliases (kept): `tmuxl` list · `tmuxa <name>` attach · `tmuxk <name>` kill
+
+## Navigation history
+Browser-style back/forward through the windows you visit. Logic in `scripts/nav-history.sh`,
+wiring in `nav-history.conf`.
+- **A place is a window.** Going back lands on the pane you were last in there; moving between
+  splits doesn't add entries.
+- **Each window appears once.** Revisiting one moves it to the newest end, so walking back never
+  stops at the same place twice.
+- **Browser rules.** Forward only works after back. Any other move (`Ctrl+1-9`, `Cmd+O`, `prefix f`,
+  ...) drops whatever was ahead.
+- **It skips closed windows and killed sessions.** floax's `scratch` session is invisible. It's never
+  recorded, and the keys say `history: off in scratch` there.
+- **At either end** you get `history: no older place` / `history: no newer place` and stay put.
+- **Memory only.** It starts empty after a tmux server restart. Loading the config records where you
+  are, so you can undo the first move after `prefix r`.
+- `tmux.conf` sources `nav-history.conf` after TPM, so continuum's restore at startup doesn't fill
+  the history.
+- **Tests.** Run `bash ~/.config/tmux/tests/nav-history.test.sh`. They spin up throwaway tmux servers
+  on their own sockets and never touch your live one.
 
 ## Three shortcut layers (the mental model)
 | Layer | Keys | Job | Works |
@@ -138,12 +166,16 @@ options.conf            behaviour: mouse, vi copy-mode, truecolor, escape-time, 
 keybindings.conf        prefix verbs (all -N described): s/v/h/j/k/l/H-L/m/q/o, c/,/n/b, f, N, ?
 plugins.conf            TPM + plugin list + sessionx/floax/resurrect settings (runs TPM last)
 theme.conf              tokyo-night-tmux options
+nav-history.conf        back/forward history: hooks + prefix ←/→ (sourced after TPM)
 sessionizer.aliases     optional per-folder session-name overrides
 scripts/sessionizer.sh  picker over ~/Projects (prefix f / Cmd+P)
 scripts/session-here.sh new session from the current folder (prefix N)
 scripts/new-window.sh   popup that names a new window (prefix c / Cmd+T)
 scripts/rename-window.sh popup that renames the current window (prefix ,)
 scripts/cheatsheet.sh   colorized prefix-key cheatsheet (prefix ?)
+scripts/nav-history.sh  history logic: record (hooks) / back / forward (prefix ←/→)
+tests/lib.sh            shared test harness: throwaway servers, assertions
+tests/nav-history.test.sh  history tests, on throwaway tmux servers
 iterm2-cmd-layer.json   iTerm2 Dynamic Profile = the CMD layer
 README.md               this file
 ```
@@ -190,11 +222,13 @@ that inherits your default profile and only adds these `Send Hex Code` mappings 
 | `Cmd+D` / `Cmd+Shift+D` | split side / stack | `Ctrl+1`…`9` | window 1–9 (Cmd+num = iTerm tabs) |
 | `Cmd+Shift+[` / `]` | prev / next window | `Cmd+P` | project finder (open by folder) |
 | `Cmd+/` | floating scratch | `Cmd+O` | session switcher (open sessions) |
+| `Cmd+←` / `Cmd+→` | history back / forward | | |
 
 **Activate:** iTerm2 → Settings → Profiles → select **“tmux (CMD layer)”** → *Other Actions ▸
 Set as Default*. **Rollback:** delete the symlink (or pick another profile). CMD bindings are
 iTerm2-local — they don't travel over SSH; the `C-b` prefix is the portable fallback.
 Notes: `Cmd+K` (normally clear buffer) becomes pane-down; `Cmd+C/V/F` are untouched.
+`Cmd+←/→` (normally iTerm's previous/next tab, like `Cmd+Shift+[/]`) become history back/forward.
 The profile also sets **Left Option = Esc+** so nvim's `<M-…>` maps (e.g. `M-d`) reach nvim
 through tmux (Right Option stays Normal, for accents). Paired with `extended-keys on` in tmux.
 
@@ -207,3 +241,6 @@ through tmux (Right Option stays Normal, for accents). Paired with `extended-key
 - **A new-window popup didn't appear after editing config** → reload: `prefix r`.
 - **`tmux-resurrect file not found` on the very first start** → benign; it seeds after the first save.
 - **A plugin or menu looks broken** → reinstall plugins: `prefix I`.
+- **`Cmd+←/→` still switch iTerm tabs** → iTerm hasn't reloaded the CMD-layer profile: run
+  `touch -h ~/Library/Application\ Support/iTerm2/DynamicProfiles/tmux-cmd-layer.json`, or reopen iTerm2
+  (tmux and everything in it keep running).

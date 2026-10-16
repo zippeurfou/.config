@@ -27,7 +27,9 @@
         "0x0d-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x6d", "Label": "Cmd+Return  zoom pane" },
         "0x70-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x66", "Label": "Cmd+P  project finder" },
         "0x6f-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x09", "Label": "Cmd+O  session finder" },
-        "0x2f-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x70", "Label": "Cmd+/  floating scratch" }
+        "0x2f-0x100000": { "Version": 1, "Action": 11, "Text": "0x02 0x70", "Label": "Cmd+/  floating scratch" },
+        "0xf702-0x300000": { "Version": 1, "Action": 11, "Text": "0x02 0x1b 0x5b 0x44", "Label": "Cmd+Left  history back" },
+        "0xf703-0x300000": { "Version": 1, "Action": 11, "Text": "0x02 0x1b 0x5b 0x43", "Label": "Cmd+Right  history forward" }
       }
     }
   ]
