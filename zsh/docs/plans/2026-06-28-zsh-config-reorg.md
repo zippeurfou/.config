@@ -22,6 +22,7 @@
 ## Decisions baked in (do NOT reintroduce the redundancies)
 
 - **One syntax highlighter:** keep `F-Sy-H`; drop `zsh-syntax-highlighting` (old `.zshrc:55`).
+  > Superseded 2026-11-02: zsh-syntax-highlighting replaced F-Sy-H, still a single highlighter. The reason is in `rc.d/99-highlight.zsh`.
 - **One dir-jumper:** keep `zsh-z`; drop rupa/z (`source /opt/homebrew/etc/profile.d/z.sh`, old `.zshrc:7`).
 - **eza FPATH before compinit** (old `.zshrc:104` was after compinit → completions never registered; this fixes it).
 - **Dedupe okta lookup:** `PRESTO_PASSWORD` reuses `$OKTA_PASSWORD` instead of a second `keyring get`.

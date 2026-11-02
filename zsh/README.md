@@ -67,7 +67,7 @@ The `rc.d/` prefixes encode real dependencies. Keep them:
 | `env.zsh` | yes | non-secret, machine-agnostic env |
 | `.zwork` | **no** (gitignored) | work env + work secrets |
 | `.zprivate` | **no** (gitignored) | personal secrets |
-| `plugins/` | yes | vendored plugins (F-Sy-H, zsh-z, bd, eza, cursor_mode) |
+| `plugins/` | yes | vendored plugins (zsh-z, bd, eza, cursor_mode) |
 | `docs/plans/` | yes | design + implementation history |
 | `.zcompdump*`, `.zsh_history`, `.zsh_sessions/` | no (gitignored) | generated caches |
 
