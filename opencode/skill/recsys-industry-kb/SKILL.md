@@ -27,7 +27,9 @@ index, commit); you read papers and produce the concept/technical-note content.
 ## Configuration
 
 - Data repo (the KB): `$RECSYS_KB_DIR` (default `~/Projects/recsys-kb`).
-- Builder (code): `~/Projects/arxiv_rec_finder` — run via `uv run --project`.
+- Builder (code): `~/Projects/arxiv_rec_finder`, run via `uv run --directory`
+  (not `--project`: `kb` is a plain directory, not an installed package, so the
+  cwd must be the repo or `python -m kb.build` fails with `No module named 'kb'`).
 - Source issues repo: `zippeurfou/arxiv_rec_finder` (needs `GITHUB_TOKEN`).
 
 Set once per session if needed: `export RECSYS_KB_DIR=~/Projects/recsys-kb`.
@@ -40,7 +42,7 @@ Follow these steps (create TodoWrite items for a non-trivial request).
 
 ```bash
 git -C "$RECSYS_KB_DIR" pull --ff-only
-uv run --project ~/Projects/arxiv_rec_finder python -m kb.build \
+uv run --directory ~/Projects/arxiv_rec_finder python -m kb.build \
     --kb-dir "$RECSYS_KB_DIR" prepare --repo zippeurfou/arxiv_rec_finder \
     --incremental --recsys-only
 ```
@@ -61,7 +63,7 @@ If `prepared=0`, skip to step 2. If `prepared>0`, do agent-driven extraction:
      (name the models/techniques and headline numbers). No preamble.
 3. Ingest + commit:
    ```bash
-   uv run --project ~/Projects/arxiv_rec_finder python -m kb.build \
+   uv run --directory ~/Projects/arxiv_rec_finder python -m kb.build \
        --kb-dir "$RECSYS_KB_DIR" ingest --extractions "$RECSYS_KB_DIR/.extractions.jsonl"
    git -C "$RECSYS_KB_DIR" pull --rebase   # integrate any concurrent push first
    git -C "$RECSYS_KB_DIR" push
@@ -92,7 +94,7 @@ The notes exist to help you CHOOSE; details live in the paper. When the task nee
 specifics (architecture, losses, ablations, numbers), read the full text:
 
 ```bash
-uv run --project ~/Projects/arxiv_rec_finder python -c \
+uv run --directory ~/Projects/arxiv_rec_finder python -c \
   "from kb.acquire import get_fulltext; from pathlib import Path; \
    print(get_fulltext('<arxiv_id>', Path.home()/'.cache/recsys-kb/fulltext'))"
 ```
@@ -121,7 +123,7 @@ the note is rendered in the exact standard format). Given an arXiv id:
 
 1. **Fetch + cache full text** (skip if you already have the text):
    ```bash
-   uv run --project ~/Projects/arxiv_rec_finder python -c \
+   uv run --directory ~/Projects/arxiv_rec_finder python -c \
      "from kb.acquire import get_fulltext; from pathlib import Path; \
       get_fulltext('<id>', Path.home()/'.cache/recsys-kb/fulltext')"
    ```
@@ -137,7 +139,7 @@ the note is rendered in the exact standard format). Given an arXiv id:
 4. **Ingest + push** (renders `papers/<id>.md`, rebuilds `index.jsonl` + concept
    pages, commits):
    ```bash
-   uv run --project ~/Projects/arxiv_rec_finder python -m kb.build \
+   uv run --directory ~/Projects/arxiv_rec_finder python -m kb.build \
        --kb-dir "$RECSYS_KB_DIR" ingest --extractions "$RECSYS_KB_DIR/.extractions.jsonl"
    git -C "$RECSYS_KB_DIR" pull --rebase && git -C "$RECSYS_KB_DIR" push
    ```
