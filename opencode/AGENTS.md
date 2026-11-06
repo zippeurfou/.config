@@ -5,7 +5,7 @@ any `docs/AGENTS.md` it points at) layers on top of this.
 
 <about_me>
 - Role: ML/AI engineer at Grubhub. Work spans recsys, evaluation, experimentation, and team comms.
-- Default model: claude-opus-4-7@default. Small tasks: claude-haiku-4-5.
+- Models (google-vertex): `claude-opus-5-5@default` for normal work, `claude-fable-5-1@default` for very hard or long multi-step work (a lane that must run unattended, a deep design review), `claude-haiku-4-5@20251001` for small tasks and titles. Pass the Fable id as the `subagent` tool's `model` when a lane deserves it. Newer versions supersede these ids; check the catalog rather than assuming.
 - Daily tools: uv, ruff, pytest, Quarto, git, gh, opencode.
 - Code lives under ~/Projects. Knowledge work is per-project (no global vault yet).
 </about_me>
@@ -34,7 +34,7 @@ any `docs/AGENTS.md` it points at) layers on top of this.
 
 <workflow_defaults>
 - **Skills first.** At the start of any non-trivial task, check whether a skill matches and use the native `skill` tool to load it. Skills override these defaults.
-- **Delegate to subagents proactively.** Opus 4.x is specifically trained to be a strong subagent prompter (per IndyDevDan framework, Opus 4.5+ release notes). When a task has 2+ independent subtasks — multiple files to research, parallel reviews, 3+ failures to investigate — dispatch in parallel via the Task tool / @mentions. The `dispatching-parallel-agents` skill formalizes this.
+- **Delegate to subagents proactively, in the background.** When a task has 2+ independent subtasks, multiple files to research, parallel reviews, 3+ failures to investigate, dispatch them in one message with the `subagent` tool and `background: true`. Each report comes back on its own and wakes the session, so keep working on anything that does not depend on it, then end the turn and wait; never start a step that depends on a pending report. Reviews and gates are background too: the verdict arrives, then act on it. Foreground only when the run is non-interactive (`opencode run`, scripts, a subagent of a subagent) or the result is needed within seconds. Several calls in one message already run concurrently either way. Subagents cannot spawn subagents (`experimental.subagent_depth` is 1), so fan-out happens from the main session. The `dispatching-parallel-agents` skill formalizes this.
 - **Todos for 3+ steps.** Use TodoWrite when the task has 3+ distinct steps or any checklist. This holds on OpenCode 2 as well: the `todowrite` tool is enabled here (`experimental.todo`). If a plugin bootstrap's tool mapping says "OpenCode v2 has no todo tool", that line is outdated; use `todowrite`.
 - **Code review before commit/PR.** Invoke the @code-reviewer subagent. Never skip on "small change" or "tests pass" rationales. Fix Critical/Important issues before proceeding; note Minor for later. Push back with reasoning if you disagree.
 - **Context hygiene.** When entering a new project, when an `AGENTS.md` exceeds ~150 lines, when no `docs/INDEX.md` exists, or when I report doing the same multi-step task more than once, invoke the **agents-config-hygiene** skill to audit and propose targeted improvements (lean-root + lazy-guides pattern, or extract a new skill).
