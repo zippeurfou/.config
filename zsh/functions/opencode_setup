@@ -1,10 +1,12 @@
 emulate -L zsh
     local upgrade_marker="/tmp/.opencode_brew_upgrade_$(date +%Y%m%d)"
     
-    # Only upgrade once per day
+    # Only upgrade once per day. opencode 2 is brew's anomalyco/tap/opencode-v2 (opencode 1 was
+    # anomalyco/tap/opencode, formerly sst/tap). After an upgrade, the first opencode launch
+    # replaces the running background service with the new version on its own.
     if [[ ! -f "$upgrade_marker" ]]; then
         echo "🔄 Upgrading opencode..."
-        if brew upgrade sst/tap/opencode; then
+        if brew upgrade anomalyco/tap/opencode-v2; then
             echo "✅ opencode upgraded successfully"
             touch "$upgrade_marker"
         else
@@ -18,14 +20,14 @@ emulate -L zsh
     # Try to export credentials first
     echo "📋 Attempting to export AWS credentials..."
     local cred_output
-    cred_output=$(aws configure export-credentials --profile data --format env 2>&1)
+    cred_output=$(aws configure export-credentials --profile "${AWS_PROFILE:-data}" --format env 2>&1)
     
     if echo "$cred_output" | grep -q "Token has expired\|expired and refresh failed\|Unable to load SSO Token"; then
         echo "🔐 AWS tokens expired, logging into AWS SSO..."
-        if aws sso login --profile data; then
+        if aws sso login --profile "${AWS_PROFILE:-data}"; then
             echo "✅ AWS SSO login successful"
             echo "📋 Exporting AWS credentials..."
-            if eval "$(aws configure export-credentials --profile data --format env)"; then
+            if eval "$(aws configure export-credentials --profile "${AWS_PROFILE:-data}" --format env)"; then
                 echo "✅ AWS credentials exported successfully"
                 echo "⏰ Credentials expire at: $AWS_CREDENTIAL_EXPIRATION"
             else
