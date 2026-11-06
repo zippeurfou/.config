@@ -33,9 +33,9 @@ any `docs/AGENTS.md` it points at) layers on top of this.
 </behavior>
 
 <workflow_defaults>
-- **Skills first.** At the start of any non-trivial task, check whether a skill matches and use the Skill tool to load it. Skills override these defaults.
+- **Skills first.** At the start of any non-trivial task, check whether a skill matches and use the native `skill` tool to load it. Skills override these defaults.
 - **Delegate to subagents proactively.** Opus 4.x is specifically trained to be a strong subagent prompter (per IndyDevDan framework, Opus 4.5+ release notes). When a task has 2+ independent subtasks — multiple files to research, parallel reviews, 3+ failures to investigate — dispatch in parallel via the Task tool / @mentions. The `dispatching-parallel-agents` skill formalizes this.
-- **Todos for 3+ steps.** Use TodoWrite when the task has 3+ distinct steps or any checklist.
+- **Todos for 3+ steps.** Use TodoWrite when the task has 3+ distinct steps or any checklist. This holds on OpenCode 2 as well: the `todowrite` tool is enabled here (`experimental.todo`). If a plugin bootstrap's tool mapping says "OpenCode v2 has no todo tool", that line is outdated; use `todowrite`.
 - **Code review before commit/PR.** Invoke the @code-reviewer subagent. Never skip on "small change" or "tests pass" rationales. Fix Critical/Important issues before proceeding; note Minor for later. Push back with reasoning if you disagree.
 - **Context hygiene.** When entering a new project, when an `AGENTS.md` exceeds ~150 lines, when no `docs/INDEX.md` exists, or when I report doing the same multi-step task more than once, invoke the **agents-config-hygiene** skill to audit and propose targeted improvements (lean-root + lazy-guides pattern, or extract a new skill).
 - **Domain tools — skills vs subagents (rule of thumb).** Knowledge lives in *skills* (single source of truth). A *subagent* is a thin, sandboxed delegation target that *uses* a skill — never a second copy of the how-to. Gate a domain behind a subagent only when its mutations are dangerous; otherwise use the skill directly in the main thread. The only decision is then "delegate or not."
@@ -46,9 +46,9 @@ any `docs/AGENTS.md` it points at) layers on top of this.
 
 <context_retrieval_order>
 When you need information you don't have:
-1. **Skills** — list available skills, load any whose `description` matches the task (use the Skill tool / `use_skill`). Skills are the largest specialized-knowledge surface; check them first.
+1. **Skills** — list available skills, load any whose `description` matches the task (use the native `skill` tool). Skills are the largest specialized-knowledge surface; check them first.
 2. **Project context** — `AGENTS.md`, `docs/INDEX.md`, `docs/glossary.md`, repo files in working dir
-3. **Domain tools** matching the task — skills: `redash` (GDP/Redash data), `gdp-glossary` (Grubhub terms); GitHub → use the `gh` CLI directly (for anything not covered use `gh api` / `gh api graphql`; run `gh <cmd> --help` if unsure — no GitHub MCP); subagents: atlassian, google, slack, papers, datadog, linkedin
+3. **Domain tools** matching the task — skills: `redash` (GDP/Redash data), `gdp-glossary` (Grubhub terms); Grubhub engineering docs (ghdocs: architecture, flows, runbooks) → `ghdevmcp` MCP + `using-ghdevmcp` skill; GitHub → use the `gh` CLI directly (for anything not covered use `gh api` / `gh api graphql`; run `gh <cmd> --help` if unsure — no GitHub MCP); subagents: atlassian, google, slack, papers, datadog, linkedin
 4. **Web search** only if the above turn up nothing
 Always cite where the answer came from (file:line, MCP tool, or URL).
 </context_retrieval_order>
@@ -71,7 +71,7 @@ Format: > 💡 <1-2 sentence explanation>
 
 <lazy_loaded_guides>
 Read on demand, not up front:
-- Skills: use the Skill tool to list/load — skill bodies are not auto-loaded
+- Skills: use the native `skill` tool to list/load — skill bodies are not auto-loaded
 - MCP setup reference: `~/.config/opencode/MCP-SETUP.md`
 - Project-specific guidance: `<repo>/AGENTS.md` and `<repo>/docs/INDEX.md`
 - **`agents-config-hygiene`** skill — load when auditing or refactoring an AGENTS.md / docs/ structure, or when extracting a new skill from a recurring workflow
